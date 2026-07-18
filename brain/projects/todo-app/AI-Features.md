@@ -20,9 +20,16 @@ natural speech; AI extracts, per task:
 
 ## Automate vs. leave manual
 - **Voice is primary**, manual/typed entry is a secondary fallback path.
-- **AI never commits a task without explicit user confirmation** — the
-  hallucination risk is real and named by Ihor as the reason confirm-before-save
-  is non-negotiable. This is the one hard automation boundary set so far.
+- **Superseded 2026-07-19 — see below.** ~~AI never commits a task without
+  explicit user confirmation~~ — reversed once job-story work surfaced the
+  real primary use case.
+- **Decided (2026-07-19) — AI always saves immediately, fully automated, no
+  blocking confirmation.** The most frequent scenario (quick capture on the
+  go) needs zero friction — no hands, no screen-checking, no review step in
+  the moment. Organizing/correcting happens later, if ever. The one hard
+  automation boundary is now the opposite of before: **never silently fail**.
+  If speech can't be parsed at all, surface a visible error/retry — don't just
+  drop it.
 - **Decided (2026-07-19) — priority comes from words only, never from voice
   delivery.** AI reads the transcribed text for explicit/implicit urgency
   language (e.g. "терміново", "asap", "before Friday's meeting"); it does not
@@ -31,33 +38,36 @@ natural speech; AI extracts, per task:
   tone-based inference would be unreliable and impossible to explain if wrong.
 
 ## Assistant posture
-Reactive on the core flow — triggered by the user's dictation, not proactive.
-(Whether the AI ever proactively nudges — e.g. reminders, re-prioritization
-suggestions — is a separate, later question.)
+Reactive on the core flow — triggered by the user's dictation, not proactive
+— and now also **non-blocking**: it acts (saves) immediately without waiting
+for the user's attention. (Whether the AI ever proactively nudges — e.g.
+reminders, re-prioritization suggestions — is a separate, later question.)
 
 ## Trust & transparency
-**Confirm-before-commit is the core trust mechanism.**
+**Superseded 2026-07-19.** ~~Confirm-before-commit is the core trust
+mechanism~~ — reversed. Real primary use case (quick capture on the go) needs
+the opposite: save first, review never-or-later.
 
-**Decided (2026-07-19) — hybrid confirmation.** After dictation, show a card
-list ("AI recognized N tasks"). Each card = title + date + priority as
-inline-editable fields (tap to fix in place, no separate edit screen). One
-primary CTA at the bottom, thumb-zone, full-width: "Add all (N)". Per-card
-dismiss to drop a single misheard task without blocking the rest.
+**Decided (2026-07-19) — optimistic save + passive confirmation.**
+- Dictation ends → AI parses → task is **saved immediately**, no gate.
+- A lightweight, dismissible confirmation appears (e.g. "✓ Saved: buy milk,
+  tomorrow 6pm") — mirrors Siri's "here's what I did" pattern Ihor named as
+  the loved reference. Not required reading; ignorable.
+- The hybrid card list designed earlier (per-task, inline-editable) survives,
+  but demoted from mandatory gate → **optional "recently captured" review
+  surface** for the "organize later" step. Same UI, different job: no longer
+  blocks saving, just makes correcting easy when the user chooses to look.
+- **New hard constraint — never fail silently.** If speech recognition itself
+  fails (can't make out what was said), the app must surface a visible,
+  actionable error (e.g. "Couldn't catch that — tap to retry or type it").
+  Silent loss was named as the worst possible outcome, worse than a wrong
+  field, because a wrong field is noticeable and fixable — nothing is not.
 
-**Why this over the alternatives:**
-- Pure batch (one blanket confirm, no per-field editing) is fastest but risky —
-  users skim lists and miss a wrong field buried in item 2 of 3; dangerous
-  given AI can hallucinate.
-- Pure sequential (confirm each task one at a time) catches errors better but
-  turns "one sentence → 3 tasks" into 3 separate confirm actions — undermines
-  the speed that's the entire point of voice capture.
-- Hybrid keeps the fast path (one tap when parsing was correct) while putting
-  the fix right where the error is seen (Direct Manipulation + Forgiveness),
-  instead of a separate edit flow.
-
-**Revisit if:** real-world parsing accuracy turns out low — then add a
-low-confidence field indicator (not colour alone, per accessibility) or fall
-back toward sequential review until accuracy improves.
+**Why the reversal:** the original confirm-gate was reasoned from an abstract
+worry (AI hallucinates) rather than the actual job. Job-story work on the most
+frequent real scenario showed the opposite priority: speed and zero friction
+beat correctness-checking in the moment; correctness gets handled later,
+optionally, not as a precondition to saving.
 
 ## Model & prompt design
 **Open.** Model choice, prompt structure, cost/latency tradeoffs — to define

@@ -37,3 +37,7 @@ No files-touched / verification / alternatives-rejected essay.
 
 ### 2026-07-19 — Priority is inferred from words only, never from voice tone/delivery
 **Why:** Keeps parsing deterministic and explainable from the transcript; tone-based inference would be unreliable and impossible to debug.
+
+### 2026-07-19 — REVERSES the 2026-07-18 "confirm-before-commit gate" and the 2026-07-19 "hybrid card list" decisions: AI always saves immediately, no blocking confirmation
+**Why:** Job-story work surfaced a contradiction — the most frequent real scenario (quick capture on the go) needs zero friction; Ihor's own benchmark (iPhone Reminders + Siri) saves immediately and tells you what it did, optionally. Silent task loss ranked as the worst possible failure — far worse than a wrong field, which is noticeable and fixable. Blocking confirm directly contradicts that.
+**New model:** optimistic save (task always created, never silently dropped) → passive, dismissible confirmation ("✓ Saved: buy milk, tomorrow 6pm") → the hybrid card list from the previous decision survives, but as an optional "review later" surface, not a mandatory gate. New hard constraint: AI must never fail silently — if speech can't be parsed at all, show a visible error/retry, don't drop it.
