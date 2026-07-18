@@ -28,6 +28,11 @@ review) plus whatever the AI integration ends up doing. Nothing built yet.
 ## Competitive set (named, not yet analysed)
 Todoist, Things, TickTick, Notion.
 
+## Repo
+- Vault: `~/Sites/todo-app/todo-app-second-brain/` — own git repo, remote `git@github.com:primascriptura/today-app.git`.
+- **GitHub account = `primascriptura` only.** `ihorkh-design` is the Goodface/aqua account — never use it for this project. See [[Decisions]] 2026-07-18.
+- Code (when it starts) also lives under `~/Sites/todo-app/`, same account.
+
 ## Related docs
 
 **Core (read every session):**

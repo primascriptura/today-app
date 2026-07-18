@@ -22,4 +22,5 @@ No files-touched / verification / alternatives-rejected essay.
 
 <!-- AI appends new entries below -->
 
-_(no decisions logged yet)_
+### 2026-07-18 — GitHub account for this project is `primascriptura` only
+**Why:** Keeps this personal project separate from `ihorkh-design` (the Goodface/aqua-funded account) — never mix the two. Remote: `git@github.com:primascriptura/today-app.git`.
