@@ -28,3 +28,6 @@ No files-touched / verification / alternatives-rejected essay.
 ### 2026-07-18 — Core interaction: voice-first capture, AI parses into structured tasks, confirm-before-commit gate
 **Why:** Speed of capture is the product's whole differentiator vs Todoist/Things/TickTick/Notion; explicit user confirmation is required before any task is saved because AI parsing can hallucinate.
 **Still open:** batch vs sequential confirmation UX when one dictation yields multiple tasks; whether priority is inferred implicitly or only set from explicit language — see [[AI-Features]].
+
+### 2026-07-19 — Confirmation UX: hybrid card list, not pure batch or pure sequential
+**Why:** Pure batch risks users skimming past a wrong field; pure sequential kills the speed voice capture is built for. Hybrid = inline-editable card list + one "Add all" CTA, per-card dismiss. Full spec in [[AI-Features]].

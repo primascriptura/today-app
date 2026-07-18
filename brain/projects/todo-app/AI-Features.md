@@ -34,18 +34,28 @@ Reactive on the core flow — triggered by the user's dictation, not proactive.
 suggestions — is a separate, later question.)
 
 ## Trust & transparency
-**Confirm-before-commit is the core trust mechanism.** Open sub-decision:
-what does confirmation look like when one dictation session produces multiple
-tasks?
-- **(a) Batch review** — AI shows all parsed tasks at once (like an
-  email-parsing "review & add" screen); one confirm commits the batch, edit
-  any before confirming.
-- **(b) Sequential one-by-one** — step through each parsed task individually
-  (swipe/tap to confirm or fix), slower but lower cognitive load per task.
-- **(c) Hybrid** — batch list view, but each row is individually editable/
-  confirmable, with a single "Add all" as the fast path.
-Matters a lot for how "fast" the flagship flow actually feels — worth deciding
-before any screen gets designed. **Ihor to decide.**
+**Confirm-before-commit is the core trust mechanism.**
+
+**Decided (2026-07-19) — hybrid confirmation.** After dictation, show a card
+list ("AI recognized N tasks"). Each card = title + date + priority as
+inline-editable fields (tap to fix in place, no separate edit screen). One
+primary CTA at the bottom, thumb-zone, full-width: "Add all (N)". Per-card
+dismiss to drop a single misheard task without blocking the rest.
+
+**Why this over the alternatives:**
+- Pure batch (one blanket confirm, no per-field editing) is fastest but risky —
+  users skim lists and miss a wrong field buried in item 2 of 3; dangerous
+  given AI can hallucinate.
+- Pure sequential (confirm each task one at a time) catches errors better but
+  turns "one sentence → 3 tasks" into 3 separate confirm actions — undermines
+  the speed that's the entire point of voice capture.
+- Hybrid keeps the fast path (one tap when parsing was correct) while putting
+  the fix right where the error is seen (Direct Manipulation + Forgiveness),
+  instead of a separate edit flow.
+
+**Revisit if:** real-world parsing accuracy turns out low — then add a
+low-confidence field indicator (not colour alone, per accessibility) or fall
+back toward sequential review until accuracy improves.
 
 ## Model & prompt design
 **Open.** Model choice, prompt structure, cost/latency tradeoffs — to define
