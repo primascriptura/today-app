@@ -24,3 +24,7 @@ No files-touched / verification / alternatives-rejected essay.
 
 ### 2026-07-18 — GitHub account for this project is `primascriptura` only
 **Why:** Keeps this personal project separate from `ihorkh-design` (the Goodface/aqua-funded account) — never mix the two. Remote: `git@github.com:primascriptura/today-app.git`.
+
+### 2026-07-18 — Core interaction: voice-first capture, AI parses into structured tasks, confirm-before-commit gate
+**Why:** Speed of capture is the product's whole differentiator vs Todoist/Things/TickTick/Notion; explicit user confirmation is required before any task is saved because AI parsing can hallucinate.
+**Still open:** batch vs sequential confirmation UX when one dictation yields multiple tasks; whether priority is inferred implicitly or only set from explicit language — see [[AI-Features]].

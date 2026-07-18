@@ -13,14 +13,29 @@ AI integration built in. Ihor is the creator and final decision-maker; his
 own background is design.
 
 ## Vision
-**Open — to define.** Don't invent this; capture it here once Ihor states it.
+Speed of capture is the whole pitch. The app opens fast and the primary action
+is **voice** — you dictate the tasks you need to do, AI parses and structures
+them (due date, priority, execution notes), you confirm, done. Manual/typed
+entry exists as a secondary path, not the main one. This is the differentiator
+vs Todoist/Things/TickTick/Notion, which are all typing/tapping-first.
 
 ## Platform
 Mobile web app (confirmed). Desktop/native — open.
 
 ## Key flows
-**Open — to define.** Core task-management flows (capture, organize, plan,
-review) plus whatever the AI integration ends up doing. Nothing built yet.
+
+### Primary — voice capture
+1. Open app → dictate one or more tasks in natural speech.
+2. AI parses the dictation into structured task(s): title, due date, priority,
+   plus any extra execution notes mentioned.
+3. **User must confirm before anything is committed** — AI hallucinates
+   sometimes, so nothing gets saved without an explicit confirm step. Exact
+   confirmation UX (one-by-one vs batch review) — open, see [[AI-Features]].
+4. Confirmed task(s) land in the list.
+
+### Secondary — manual entry
+Typed/tapped task creation still exists as a fallback, but voice is the
+headline action the product is built around.
 
 ## Audience
 **Open — to define.**
