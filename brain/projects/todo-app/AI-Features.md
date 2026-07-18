@@ -23,10 +23,12 @@ natural speech; AI extracts, per task:
 - **AI never commits a task without explicit user confirmation** — the
   hallucination risk is real and named by Ihor as the reason confirm-before-save
   is non-negotiable. This is the one hard automation boundary set so far.
-- **Open:** does the AI infer priority implicitly from language/tone (e.g. urgency
-  cues), or only set it when the user states it explicitly? Implicit inference
-  is more "magic" but more likely to be wrong and erode trust — worth deciding
-  deliberately, not by default.
+- **Decided (2026-07-19) — priority comes from words only, never from voice
+  delivery.** AI reads the transcribed text for explicit/implicit urgency
+  language (e.g. "терміново", "asap", "before Friday's meeting"); it does not
+  use tone, pace, volume, or other paralinguistic signal from the audio itself.
+  Keeps the model deterministic and debuggable from the transcript alone —
+  tone-based inference would be unreliable and impossible to explain if wrong.
 
 ## Assistant posture
 Reactive on the core flow — triggered by the user's dictation, not proactive.

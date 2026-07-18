@@ -38,7 +38,10 @@ Typed/tapped task creation still exists as a fallback, but voice is the
 headline action the product is built around.
 
 ## Audience
-**Open — to define.**
+**Maximally broad — anyone with a phone.** Not a niche productivity-nerd tool
+(unlike Todoist's power-user positioning); this is an everyday app for general
+phone users. No segment/persona narrowing yet — see [[Ideas]] for user-needs
+work in progress.
 
 ## Competitive set (named, not yet analysed)
 Todoist, Things, TickTick, Notion.

@@ -31,3 +31,9 @@ No files-touched / verification / alternatives-rejected essay.
 
 ### 2026-07-19 — Confirmation UX: hybrid card list, not pure batch or pure sequential
 **Why:** Pure batch risks users skimming past a wrong field; pure sequential kills the speed voice capture is built for. Hybrid = inline-editable card list + one "Add all" CTA, per-card dismiss. Full spec in [[AI-Features]].
+
+### 2026-07-19 — Audience: maximally broad, not a power-user tool
+**Why:** Everyday app for anyone with a phone — deliberately not chasing Todoist's productivity-nerd niche.
+
+### 2026-07-19 — Priority is inferred from words only, never from voice tone/delivery
+**Why:** Keeps parsing deterministic and explainable from the transcript; tone-based inference would be unreliable and impossible to debug.
