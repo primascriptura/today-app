@@ -7,6 +7,9 @@ updated: 2026-07-18
 
 # Project: To-do App
 
+**App name: Today** (decided 2026-07-19, see [[Decisions]]) — "To-do App" in
+this doc's title is the working/project name, not the product name.
+
 ## Context
 A mobile web app in the to-do / task-management space (Todoist-like), with
 AI integration built in. Ihor is the creator and final decision-maker; his
@@ -108,6 +111,13 @@ elicited. Resolved by reversing the confirm-gate — see [[Decisions]].
 
 **Feature specs:**
 - [[AI-Features]] — AI integration: behaviour, automation boundaries, prompt design, AI UX patterns
+
+**Strategy & model:**
+- [[Strategy]] — desired outcome, opportunity tree, prioritized solution bets
+- [[Concept-Model]] — objects, states, vocabulary (Task, Dictation)
+- [[Flow-Voice-Capture]] — breadboard for the flagship voice-capture flow
+- [[References]] — visual/interaction references collected for the surface layer
+- [[Design-Prompt]] — draft prompt for generating screens in an AI design tool
 
 **Plans (active):**
 _(none yet — plans move to `plans/_archive/` once fully executed)_

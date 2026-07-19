@@ -27,4 +27,6 @@ _(none yet)_
 _(none yet)_
 
 ## AI / Prompt Design
-_(none yet — see [[AI-Features]] for the working spec once it exists)_
+- `open` — Chat with AI about your own tasks ("what's next in my list?").
+  Inspired by Granola's "chat with your meetings" ([[References]]). Ihor
+  flagged as additional, secondary — not part of the flagship capture flow.
