@@ -41,3 +41,33 @@ No files-touched / verification / alternatives-rejected essay.
 ### 2026-07-19 — REVERSES the 2026-07-18 "confirm-before-commit gate" and the 2026-07-19 "hybrid card list" decisions: AI always saves immediately, no blocking confirmation
 **Why:** Job-story work surfaced a contradiction — the most frequent real scenario (quick capture on the go) needs zero friction; Ihor's own benchmark (iPhone Reminders + Siri) saves immediately and tells you what it did, optionally. Silent task loss ranked as the worst possible failure — far worse than a wrong field, which is noticeable and fixable. Blocking confirm directly contradicts that.
 **New model:** optimistic save (task always created, never silently dropped) → passive, dismissible confirmation ("✓ Saved: buy milk, tomorrow 6pm") → the hybrid card list from the previous decision survives, but as an optional "review later" surface, not a mandatory gate. New hard constraint: AI must never fail silently — if speech can't be parsed at all, show a visible error/retry, don't drop it.
+
+### 2026-07-19 — Business outcome for MVP: portfolio/case-study, not growth
+**Why:** First time this was discussed — chose a demonstrable design/product case study over user growth or personal validation; reprioritizes roadmap away from onboarding/retention/monetization toward flagship-flow craft. Full tree in [[Strategy]].
+
+### 2026-07-19 — In-car capture: no dedicated eyes-free/audio-only mode
+**Why:** General voice-capture flow (entry point + passive "✓ Saved") must hold up without a screen glance — not a separate bet or build, since driving is the same action under a stricter constraint, not a new flow.
+
+### 2026-07-19 — Solution bet priority: flagship flow first, then error/retry craft, then batch dictation
+**Why:** Case-study outcome rewards polish on the most-used flow and the unhappy path (rare in competitors) over range; batch dictation for evening planning can wait.
+
+### 2026-07-19 — Completing a Task archives it, removes it from the active list
+**Why:** First time task completion was defined at all — no archive-vs-delete debate yet, just: done means gone from the list, not shown crossed-out. Full model in [[Concept-Model]].
+
+### 2026-07-19 — Entry point for voice capture: open app, then one tap on mic button
+**Why:** Auto-start-on-open risks recording before the user's ready; OS-level shortcut (lock-screen-style) is unproven for a mobile web app. One tap is the simple, reliable middle ground. Full flow in [[Flow-Voice-Capture]].
+
+### 2026-07-19 — Take Tiimo's chat/task-card visual style, drop its confirm-before-save gate
+**Why:** Tiimo (reference) waits for a "Create tasks" tap before saving — reintroduces the confirm-gate already rejected. Borrow the look (chat thread, task card, Speak input), keep optimistic save: card appears as an already-saved fact.
+
+### 2026-07-19 — Batch dictation ends with one tap to finish, not per-task confirmation
+**Why:** Todoist's "Ramble" flow (see [[References]]) shows task cards progressively while listening, then one tap ends the session and saves all — a lighter middle ground than Tiimo's per-task gate, fits multi-task evening planning (Opportunity B) better than fully zero-touch.
+
+### 2026-07-19 — App name: Today
+**Why:** First name decided for the project — used from here on in place of "To-do App" placeholder.
+
+### 2026-07-19 — Visual direction: closely replicate Todoist's "Ramble" flow, swap only the accent color
+**Why:** Ihor's explicit call, overriding an earlier caution about portfolio originality — priority right now is that it works and looks Todoist-quality, not differentiation. Revisit if the case-study framing needs more visual distinctiveness later.
+
+### 2026-07-19 — Stack: Next.js 16 (App Router) + React state + localStorage, no backend, no Tailwind
+**Why:** Ihor's call. Next.js leaves room for the later AI/server work without a separate backend now; plain CSS on the Organic tokens keeps the design port 1:1 (the source design is inline-style based). Voice flow stubbed — no AI yet. Full detail in [[Architecture]].

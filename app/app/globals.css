@@ -1,0 +1,92 @@
+/*
+ * Today — global tokens & base styles.
+ * Design system: "Organic" (Caprasimo + Figtree). Tokens ported from the
+ * Organic styles.css so this app matches the source design 1:1. The app-local
+ * accent (Indigo by default) overrides the Organic terracotta accent, exactly
+ * as Today.dc.html did.
+ */
+
+:root {
+  /* Organic text / neutral */
+  --color-text: #201e1d;
+  --app-bg: #f9f4ed; /* Organic neutral-100 — the Today screen background */
+
+  /* App accent — Indigo (design default). Swappable to Terracotta / Coral. */
+  --app-accent: #3b4b8c;
+  --app-accent-strong: #2c3866;
+  --app-grad: radial-gradient(125% 92% at 50% 60%, #b7bfe4 0%, #dbdff1 44%, #f4f5fb 100%);
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-body), system-ui, sans-serif;
+  color: var(--color-text);
+  background: #e7e2d9; /* the surface behind the app column on wide screens */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: var(--app-accent-strong);
+}
+
+/* Hide the horizontal day-strip scrollbar */
+.dayStrip::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Animations (ported from Today.dc.html) ─────────────────────────────── */
+@keyframes layerIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.28); }
+  50% { transform: scaleY(1); }
+}
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.22; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-10px) rotate(-3deg) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) rotate(-3deg) scale(1); }
+}
+@keyframes taskLeave {
+  from { opacity: 1; max-height: 96px; margin-bottom: 12px; }
+  to { opacity: 0; max-height: 0; margin-bottom: 0; transform: translateX(-40px); }
+}
+@keyframes sheetUp {
+  from { transform: translateY(30px); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

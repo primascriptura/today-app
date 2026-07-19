@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# stray debug logs
+*.log
+
+# preview tool launch configs (machine-local, absolute paths)
+.claude/

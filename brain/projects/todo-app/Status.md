@@ -1,7 +1,7 @@
 ---
 type: status
 project: todo-app
-updated: 2026-07-18
+updated: 2026-07-19
 ---
 
 # Project Status
@@ -13,13 +13,16 @@ updated: 2026-07-18
 ---
 
 ## In progress
-_(nothing logged yet)_
+- Next step: wire real speech capture + AI parsing (currently stubbed)
 
 ## Recent shipped work
-_(nothing shipped yet)_
+- 2026-07-19 — Today UI skeleton scaffolded in `app/` (Next.js 16, no AI/backend), verified + pushed [[Decisions#2026-07-19 — Stack: Next.js 16 (App Router) + React state + localStorage, no backend, no Tailwind]]
 
 ## Pending product questions
-_(none yet — log open questions here as they surface, grouped by area)_
+- Job stories are self-reported (Ihor only) — accepted risk, not validated
+- Batch dictation (Opp B) and error-craft (Opp C) flows not yet breadboarded
+- Eyes-free retry/cancel while driving — unresolved (see Flow-Voice-Capture)
+- Priority scale, archive-reopen, raw transcript visibility — open (see Concept-Model)
 
 ---
 
