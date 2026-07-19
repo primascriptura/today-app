@@ -30,7 +30,10 @@ export default function TodayView({
 }: TodayViewProps) {
   const day = DAYS[sel];
   const dayTasks = tasks.filter((t) => t.day === sel);
-  const showComposerBar = screen === "tasks" && !composing;
+  // Keep the input bar present whenever the task list is on screen — including
+  // the post-voice "confirmation" moment — so it never blinks out after capture.
+  const showComposerBar =
+    (screen === "tasks" || screen === "confirmation") && !composing;
 
   return (
     <div style={{ position: "absolute", inset: 0, background: "#f9f4ed" }}>
@@ -40,7 +43,7 @@ export default function TodayView({
           inset: 0,
           display: "flex",
           flexDirection: "column",
-          padding: "54px 20px 0",
+          padding: "18px 20px 0",
         }}
       >
         {/* Header */}

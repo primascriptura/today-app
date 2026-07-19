@@ -15,10 +15,12 @@ export const DAYS: DayInfo[] = [
 ];
 
 export const SLOTS: SlotInfo[] = [
+  // Anytime first: newly captured / unscheduled tasks land here, so keeping the
+  // group at the top means a just-added task is visible without scrolling.
+  { key: "anytime", label: "ANYTIME", tint: "#efece6", ic: "clock" },
   { key: "morning", label: "MORNING", tint: "#fbe9dc", ic: "sunrise" },
   { key: "afternoon", label: "AFTERNOON", tint: "#e6ecf6", ic: "sun" },
   { key: "evening", label: "EVENING", tint: "#e9e6f2", ic: "moon" },
-  { key: "anytime", label: "ANYTIME", tint: "#efece6", ic: "clock" },
 ];
 
 // Seed tasks — shown on first load, then persisted to localStorage.
