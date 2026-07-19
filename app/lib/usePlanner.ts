@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_DAY, SEED_TASKS } from "./data";
+import type { ParseResponse, ParsedTask } from "./parse";
 import type { Screen, SlotKey, Task } from "./types";
+import { useSpeech } from "./useSpeech";
 
 const STORAGE_KEY = "today.v1";
 
@@ -44,6 +46,7 @@ const initialState: PlannerState = {
 export function usePlanner() {
   const [state, setState] = useState<PlannerState>(initialState);
   const [hydrated, setHydrated] = useState(false);
+  const speech = useSpeech();
 
   // Timers driving the stubbed voice flow + row-leave animations.
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -95,45 +98,66 @@ export function usePlanner() {
     }
   }, [hydrated, state.tasks, state.done]);
 
-  // ── Voice flow (STUBBED — no AI / transcription yet) ──────────────────────
+  // ── Voice flow (real: Web Speech API → /api/parse → tasks) ────────────────
+  // Turn a parsed task into a full Task landing on the correct demo-week day.
+  const toTask = useCallback((p: ParsedTask, offset: number): Task => ({
+    id: Date.now() + offset,
+    title: p.title,
+    meta: p.meta,
+    when: p.day === DEFAULT_DAY ? "today" : "later",
+    slot: p.slot,
+    day: p.day,
+    icon: "dot",
+    tint: "#e6e9f7",
+    priority: p.priority,
+    notes: p.notes,
+  }), []);
+
   const tapMic = useCallback(() => {
     clearTimers();
     setState((s) => ({ ...s, screen: "listening", paused: false, composing: false }));
-  }, [clearTimers]);
+    speech.start().catch(() => {
+      // Mic denied or unsupported → surface the error screen, never silent.
+      setState((s) => ({ ...s, screen: "error" }));
+    });
+  }, [clearTimers, speech]);
 
   const cancel = useCallback(() => {
     clearTimers();
+    speech.abort();
     setState((s) => ({ ...s, screen: "tasks" }));
-  }, [clearTimers]);
+  }, [clearTimers, speech]);
 
   const togglePause = useCallback(() => {
     setState((s) => ({ ...s, paused: !s.paused }));
   }, []);
 
-  // Finish: optimistic save. With real audio this would post the transcript to
-  // the parser; for now it appends a fixed placeholder task after a short delay.
-  const finish = useCallback(() => {
+  // Finish: stop listening, parse the transcript into structured tasks, and
+  // append them optimistically. Any failure routes to the error screen.
+  const finish = useCallback(async () => {
     clearTimers();
     setState((s) => ({ ...s, screen: "processing" }));
-    later(() => {
-      setState((s) => {
-        const task: Task = {
-          id: Date.now(),
-          title: "Follow up on job interview",
-          meta: "11:00 AM",
-          when: "later",
-          slot: "morning",
-          day: s.sel,
-          icon: "brief",
-          tint: "#e6e9f7",
-        };
-        return { ...s, screen: "confirmation", tasks: [task, ...s.tasks] };
+    try {
+      const transcript = await speech.stop();
+      const res = await fetch("/api/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript }),
       });
+      if (!res.ok) throw new Error("parse failed");
+      const data = (await res.json()) as ParseResponse;
+      if (!data.tasks.length) throw new Error("no tasks");
+
+      const newTasks = data.tasks.map((p, i) => toTask(p, i));
+      setState((s) => ({ ...s, screen: "confirmation", tasks: [...newTasks, ...s.tasks] }));
       later(() => {
         setState((s) => (s.screen === "confirmation" ? { ...s, screen: "tasks" } : s));
       }, 3000);
-    }, 720);
-  }, [clearTimers, later]);
+    } catch {
+      // Nothing understood / network / parse error → visible error, never silent.
+      setState((s) => ({ ...s, screen: "error" }));
+    }
+  }, [clearTimers, later, speech, toTask]);
 
   const dismiss = useCallback(() => {
     clearTimers();
@@ -143,7 +167,10 @@ export function usePlanner() {
   const retry = useCallback(() => {
     clearTimers();
     setState((s) => ({ ...s, screen: "listening", paused: false }));
-  }, [clearTimers]);
+    speech.start().catch(() => {
+      setState((s) => ({ ...s, screen: "error" }));
+    });
+  }, [clearTimers, speech]);
 
   // ── Day strip ─────────────────────────────────────────────────────────────
   const selectDay = useCallback((i: number) => {
