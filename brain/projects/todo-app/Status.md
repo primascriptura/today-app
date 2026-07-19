@@ -13,9 +13,16 @@ updated: 2026-07-19
 ---
 
 ## In progress
-- Voice→AI wiring code-complete on main; ⚠️ blocked on real key in `app/.env.local` + real-browser mic test
+- Voice→AI + voice-reactive waveform live; ⚠️ only real-browser mic test left (dictation + waveform reaction)
 
 ## Recent shipped work
+- 2026-07-19 — Real dates: strip centered on real today (Today/Yesterday/Tomorrow labels + real date, today ring+dot marker); seeds + parser use real todayIndex; verified in prod build [[Decisions#2026-07-19 — Real current date replaces the fixed Jan-2026 demo range]]
+- 2026-07-19 — Waveform now reacts to real speech: Web Audio mic meter drives the bars, calm "breathing" baseline in silence (was a fixed decorative cadence); idle render verified, live reaction needs browser mic
+- 2026-07-19 — Real-time dictation: `interimResults` streams a card while speaking + optimistic card enriched in place, so nothing waits on a pause or the Claude round-trip; typecheck + build + /api/parse (client-strip payload) verified
+- 2026-07-19 — Live dictation: cards appear per phrase during listening (Ramble-style), placeholder cross-fades out, Finish commits w/o Processing; verified via simulated speech + real /api/parse [[Decisions#2026-07-19 — Dictation shows task cards live, per recognized phrase]]
+- 2026-07-19 — Per-task icons: parser now picks a category glyph (16 icons + dot); Icon set + ICON_TINTS expanded; verified via /api/parse + DOM render
+- 2026-07-19 — Fixed day switching: `selectDay` guard was `i>6`, rejected days 7–20 on the 21-day strip; now `i>=DAYS.length`
+- 2026-07-19 — Fixed day-index mismatch: parser `day` enum now derived from `DAYS` (was hardcoded 0–6 vs DEFAULT_DAY=11), so voice tasks render on the right day/slot instead of vanishing
 - 2026-07-19 — Voice→Claude Haiku parsing wired (useSpeech uk-UA + /api/parse + usePlanner); build green, mic path untested headless
 - 2026-07-19 — Today UI skeleton scaffolded in `app/` (Next.js 16, no AI/backend), verified + pushed [[Decisions#2026-07-19 — Stack: Next.js 16 (App Router) + React state + localStorage, no backend, no Tailwind]]
 

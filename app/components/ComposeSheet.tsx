@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties } from "react";
-import { DAYS, DEFAULT_DAY } from "@/lib/data";
+import type { DayInfo } from "@/lib/types";
 import type { PlannerActions } from "@/lib/usePlanner";
 
 interface ComposeSheetProps {
@@ -9,6 +9,7 @@ interface ComposeSheetProps {
   chipDate: boolean;
   chipPriority: boolean;
   sel: number;
+  days: DayInfo[];
   actions: PlannerActions;
 }
 
@@ -45,11 +46,13 @@ export default function ComposeSheet({
   chipDate,
   chipPriority,
   sel,
+  days,
   actions,
 }: ComposeSheetProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const hasDraft = draft.trim().length > 0;
-  const composeTarget = sel === DEFAULT_DAY ? "Today" : DAYS[sel].full;
+  // days[sel].label already reads "Today" / "Yesterday" / weekday.
+  const composeTarget = days[sel]?.label ?? "Today";
 
   useEffect(() => {
     // Open the keyboard as soon as the sheet appears.

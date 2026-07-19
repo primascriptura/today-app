@@ -71,3 +71,9 @@ No files-touched / verification / alternatives-rejected essay.
 
 ### 2026-07-19 — Stack: Next.js 16 (App Router) + React state + localStorage, no backend, no Tailwind
 **Why:** Ihor's call. Next.js leaves room for the later AI/server work without a separate backend now; plain CSS on the Organic tokens keeps the design port 1:1 (the source design is inline-style based). Voice flow stubbed — no AI yet. Full detail in [[Architecture]].
+
+### 2026-07-19 — Dictation shows task cards live, per recognized phrase
+**Why:** Delivers the Ramble progressive flow anticipated in [[Decisions#2026-07-19 — Batch dictation ends with one tap to finish, not per-task confirmation]]: each finalized phrase parses on its own (serial queue, cards in spoken order), the "Try saying" placeholder cross-fades out on the first card, Finish just commits (no Processing screen — cards are already optimistic facts), and Cancel (✕) discards the session's cards. Full-transcript parse kept only as a fallback when nothing parsed live.
+
+### 2026-07-19 — Real current date replaces the fixed Jan-2026 demo range
+**Why:** App now reads real today (rolling 21-day strip centered on it, Today/Yesterday/Tomorrow labels + today marker); seeds land on today, and the parser resolves relative days against the client's own strip (sent in the request) so it's timezone-independent. Reverses the "fixed demo week / DEFAULT_DAY=11" placeholder. Task persistence is still index-based (a saved day drifts as the window rolls) — deferred, not addressed.

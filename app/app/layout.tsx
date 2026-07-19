@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Caprasimo, Figtree } from "next/font/google";
+import { Caprasimo, Inter } from "next/font/google";
 import "./globals.css";
 
-// "Organic" design-system typefaces: Caprasimo for headings, Figtree for body.
+// "Organic" design-system typefaces: Caprasimo for headings, Inter for body.
+// Inter (not Figtree) so Cyrillic text renders correctly.
 const heading = Caprasimo({
   weight: "400",
   subsets: ["latin"],
@@ -10,9 +11,9 @@ const heading = Caprasimo({
   display: "swap",
 });
 
-const body = Figtree({
+const body = Inter({
   weight: ["400", "600", "700"],
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
   variable: "--font-body",
   display: "swap",
 });

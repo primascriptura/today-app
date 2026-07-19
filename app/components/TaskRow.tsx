@@ -10,6 +10,10 @@ interface TaskRowProps {
   leavingKind: "complete" | "delete" | null;
   /** Current horizontal swipe offset (0 when not swiping this row). */
   dx: number;
+  /** Play the "card drops in" enter animation once on mount (live dictation). */
+  entering?: boolean;
+  /** Stagger offset (ms) for the enter animation when several land at once. */
+  enterDelayMs?: number;
   onComplete: (id: number) => void;
   onSwipeStart: (e: React.PointerEvent, id: number) => void;
   onSwipeMove: (e: React.PointerEvent) => void;
@@ -20,6 +24,8 @@ export default function TaskRow({
   task,
   leavingKind,
   dx,
+  entering = false,
+  enterDelayMs = 0,
   onComplete,
   onSwipeStart,
   onSwipeMove,
@@ -28,6 +34,12 @@ export default function TaskRow({
   const leaving = leavingKind !== null;
   const completing = leavingKind === "complete";
 
+  const animation = leaving
+    ? "taskLeave .34s cubic-bezier(.4,0,.2,1) forwards"
+    : entering
+      ? `taskEnter .24s cubic-bezier(.23,1,.32,1) ${enterDelayMs}ms both`
+      : "none";
+
   return (
     <div
       style={{
@@ -35,28 +47,32 @@ export default function TaskRow({
         marginBottom: 12,
         borderRadius: 18,
         overflow: "hidden",
-        animation: leaving ? "taskLeave .34s cubic-bezier(.4,0,.2,1) forwards" : "none",
+        animation,
       }}
     >
-      {/* Red "delete" backdrop revealed by swiping left. */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "#d64545",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          paddingRight: 24,
-        }}
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-          <path d="M10 11v6M14 11v6" />
-          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-        </svg>
-      </div>
+      {/* Red "delete" backdrop, only painted while actually revealed by a
+          swipe — otherwise it sits full-bleed behind the resting white card
+          and a hairline of it shows through at the shared rounded corners. */}
+      {dx !== 0 && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "#d64545",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            paddingRight: 24,
+          }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </div>
+      )}
 
       {/* Foreground card. */}
       <div
@@ -66,7 +82,7 @@ export default function TaskRow({
         onPointerCancel={onSwipeEnd}
         style={{
           position: "relative",
-          transform: `translateX(${dx}px)`,
+          transform: dx ? `translateX(${dx}px)` : undefined,
           transition: dx ? "none" : "transform .22s ease",
           touchAction: "pan-y",
           background: "#fff",

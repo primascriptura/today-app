@@ -3,14 +3,16 @@
 import DayStrip from "./DayStrip";
 import Icon from "./Icon";
 import TaskRow from "./TaskRow";
-import { DAYS, SLOTS } from "@/lib/data";
-import type { Screen, Task } from "@/lib/types";
+import { SLOTS } from "@/lib/data";
+import type { DayInfo, Screen, Task } from "@/lib/types";
 import type { PlannerActions } from "@/lib/usePlanner";
 
 interface TodayViewProps {
   screen: Screen;
   tasks: Task[];
   sel: number;
+  days: DayInfo[];
+  todayIndex: number;
   collapsed: Record<string, boolean>;
   swipe: { id: number; dx: number } | null;
   leaving: { id: number; kind: "complete" | "delete" } | null;
@@ -22,13 +24,15 @@ export default function TodayView({
   screen,
   tasks,
   sel,
+  days,
+  todayIndex,
   collapsed,
   swipe,
   leaving,
   composing,
   actions,
 }: TodayViewProps) {
-  const day = DAYS[sel];
+  const day = days[sel];
   const dayTasks = tasks.filter((t) => t.day === sel);
   // Keep the input bar present whenever the task list is on screen — including
   // the post-voice "confirmation" moment — so it never blinks out after capture.
@@ -56,22 +60,23 @@ export default function TodayView({
               color: "#201e1d",
             }}
           >
-            {day.full}
+            {day.label}
           </div>
           <div
+            suppressHydrationWarning
             style={{
               fontSize: 16,
               color: "color-mix(in srgb, var(--color-text) 52%, transparent)",
               marginTop: 4,
             }}
           >
-            {"January " + day.n + "th, 2026"}
+            {day.dateLabel}
           </div>
         </div>
 
         {/* Day switcher */}
         <div style={{ marginTop: 18 }}>
-          <DayStrip sel={sel} onSelect={actions.selectDay} />
+          <DayStrip sel={sel} days={days} todayIndex={todayIndex} onSelect={actions.selectDay} />
         </div>
 
         {/* Task list */}

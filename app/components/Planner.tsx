@@ -20,7 +20,7 @@ const ACCENTS = {
 } as const;
 
 export default function Planner() {
-  const { state, actions } = usePlanner();
+  const { state, actions, days, todayIndex, mic } = usePlanner();
   const { screen } = state;
 
   const showTasksView = screen === "tasks" || screen === "confirmation";
@@ -49,6 +49,8 @@ export default function Planner() {
             screen={screen}
             tasks={state.tasks}
             sel={state.sel}
+            days={days}
+            todayIndex={todayIndex}
             collapsed={state.collapsed}
             swipe={state.swipe}
             leaving={state.leaving}
@@ -63,6 +65,7 @@ export default function Planner() {
             chipDate={state.chipDate}
             chipPriority={state.chipPriority}
             sel={state.sel}
+            days={days}
             actions={actions}
           />
         )}
@@ -79,7 +82,13 @@ export default function Planner() {
         )}
 
         {screen === "listening" && (
-          <ListeningView paused={state.paused} actions={actions} />
+          <ListeningView
+            paused={state.paused}
+            liveTasks={state.tasks.filter((t) => state.liveIds.includes(t.id))}
+            levelRef={mic.levelRef}
+            bandsRef={mic.bandsRef}
+            actions={actions}
+          />
         )}
         {screen === "processing" && <ProcessingView />}
         {screen === "error" && <ErrorView actions={actions} />}

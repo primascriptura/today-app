@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { DEFAULT_DAY, SEED_TASKS } from "./data";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ICON_TINTS, makeSeedTasks } from "./data";
+import { buildStrip } from "./dates";
 import type { ParseResponse, ParsedTask } from "./parse";
 import type { Screen, SlotKey, Task } from "./types";
+import { useMicLevel } from "./useMicLevel";
 import { useSpeech } from "./useSpeech";
 
 const STORAGE_KEY = "today.v1";
@@ -28,12 +30,20 @@ interface PlannerState {
   done: number;
   /** How many tasks the last dictation produced — drives the confirmation copy. */
   lastAdded: number;
+  /**
+   * IDs of tasks created live during the current dictation session (newest
+   * first). Drives the Listening view's progressive card stack; reset when a
+   * session starts, and cleared once the session is committed or canceled.
+   */
+  liveIds: number[];
 }
 
+// Placeholder tasks/sel are replaced in the useState initializer once the real
+// day strip is known (see usePlanner).
 const initialState: PlannerState = {
   screen: "tasks",
-  tasks: SEED_TASKS,
-  sel: DEFAULT_DAY,
+  tasks: [],
+  sel: 0,
   paused: false,
   composing: false,
   draft: "",
@@ -44,12 +54,21 @@ const initialState: PlannerState = {
   leaving: null,
   done: 0,
   lastAdded: 0,
+  liveIds: [],
 };
 
 export function usePlanner() {
-  const [state, setState] = useState<PlannerState>(initialState);
+  // The rolling day strip, centered on the real current day. Computed once per
+  // mount; stable for the session.
+  const { days, todayIndex } = useMemo(() => buildStrip(new Date()), []);
+  const [state, setState] = useState<PlannerState>(() => ({
+    ...initialState,
+    tasks: makeSeedTasks(todayIndex),
+    sel: todayIndex,
+  }));
   const [hydrated, setHydrated] = useState(false);
   const speech = useSpeech();
+  const mic = useMicLevel();
 
   // Timers driving the stubbed voice flow + row-leave animations.
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -64,6 +83,28 @@ export function usePlanner() {
 
   // Pointer-swipe scratch state (mirrors the design's this._sw).
   const swipeRef = useRef<{ id: number; x0: number } | null>(null);
+
+  // ── Live dictation machinery ───────────────────────────────────────────────
+  // Real-time model: a card is shown the INSTANT speech is heard (optimistic,
+  // raw transcript), then Claude enriches it in place. Nothing waits on the
+  // network to appear on screen.
+  //   - draftIdRef: the card currently being spoken (interim results stream into
+  //     it) — null between phrases.
+  //   - pendingRef: finalized phrases awaiting enrichment, each tagged with the
+  //     id of the optimistic card it should upgrade.
+  const draftIdRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ id: number; text: string }[]>([]);
+  const drainPromiseRef = useRef<Promise<void> | null>(null);
+  // Bumps every session (mic start / cancel), so late async work can bail out.
+  const sessionRef = useRef(0);
+  // Mirror of `paused` the async loop can read synchronously.
+  const pausedRef = useRef(false);
+  // Count of live cards this session (ref so finish() reads it instantly).
+  const liveCountRef = useRef(0);
+  // Monotonic id source for live cards — avoids Date.now() collisions when
+  // several phrases land inside the same millisecond.
+  const seqRef = useRef(0);
+  const nextLiveId = useCallback(() => Date.now() + seqRef.current++, []);
 
   // ── Persistence ──────────────────────────────────────────────────────────
   // Load once on mount (client only), so SSR + first render stay deterministic.
@@ -107,84 +148,294 @@ export function usePlanner() {
     id: Date.now() + offset,
     title: p.title,
     meta: p.meta,
-    when: p.day === DEFAULT_DAY ? "today" : "later",
+    when: p.day === todayIndex ? "today" : "later",
     slot: p.slot,
     day: p.day,
-    icon: "dot",
-    tint: "#e6e9f7",
+    icon: p.icon,
+    tint: ICON_TINTS[p.icon] ?? ICON_TINTS.dot,
     priority: p.priority,
     notes: p.notes,
-  }), []);
+  }), [todayIndex]);
 
-  const tapMic = useCallback(() => {
+  // A card shown immediately from raw speech, before Claude has parsed it.
+  // Lands on "today / anytime" with the neutral dot until enrichment upgrades it.
+  const draftTask = useCallback((text: string, id: number): Task => ({
+    id,
+    title: text,
+    meta: null,
+    when: "today",
+    slot: "anytime",
+    day: todayIndex,
+    icon: "dot",
+    tint: ICON_TINTS.dot,
+    priority: false,
+    notes: null,
+  }), [todayIndex]);
+
+  // POST a transcript (a single phrase or the whole thing) to the parser.
+  // Returns the parsed tasks, or null on network/parse failure or empty result.
+  const parseTranscript = useCallback(
+    async (transcript: string): Promise<ParsedTask[] | null> => {
+      try {
+        const res = await fetch("/api/parse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // Send the client's own strip so relative days ("tomorrow", "Friday")
+          // resolve against what the user actually sees — independent of the
+          // server's clock or timezone.
+          body: JSON.stringify({
+            transcript,
+            todayIndex,
+            days: days.map((d, index) => ({ index, weekday: d.full })),
+          }),
+        });
+        if (!res.ok) return null;
+        const data = (await res.json()) as ParseResponse;
+        return data.tasks.length ? data.tasks : null;
+      } catch {
+        return null;
+      }
+    },
+    [days, todayIndex],
+  );
+
+  // Drain the phrase queue serially so cards land in spoken order and parse
+  // calls never overlap. One card (or several) prepended per recognized phrase.
+  // Drain the pending phrases serially (parse calls never overlap). Each phrase
+  // already has an optimistic card on screen — parsing UPGRADES that card in
+  // place: the first parsed task replaces it (same id, same slot in the stack),
+  // any extras from the same phrase are inserted right after it.
+  const drainQueue = useCallback(
+    (session: number): Promise<void> => {
+      if (drainPromiseRef.current) return drainPromiseRef.current;
+      const p = (async () => {
+        while (pendingRef.current.length > 0) {
+          const item = pendingRef.current.shift()!;
+          if (session !== sessionRef.current) return;
+          const parsed = await parseTranscript(item.text);
+          if (session !== sessionRef.current) return;
+          // Parse failed / noise → keep the raw optimistic card (never lose it).
+          if (!parsed) continue;
+          const enriched = parsed.map((pk, i) => toTask(pk, i));
+          const [head, ...rest] = enriched;
+          // Fix extra-card ids outside setState (no side effects in the updater).
+          const restCards = rest.map((r) => ({ ...r, id: nextLiveId() }));
+          liveCountRef.current += restCards.length;
+          setState((s) => {
+            const idx = s.tasks.findIndex((t) => t.id === item.id);
+            if (idx === -1) return s; // card was canceled/removed mid-flight
+            const tasks = [...s.tasks];
+            tasks.splice(idx, 1, { ...head, id: item.id }, ...restCards);
+            let liveIds = s.liveIds;
+            if (restCards.length) {
+              liveIds = [...s.liveIds];
+              const at = liveIds.indexOf(item.id);
+              liveIds.splice(at + 1, 0, ...restCards.map((r) => r.id));
+            }
+            return { ...s, tasks, liveIds };
+          });
+        }
+      })().finally(() => {
+        drainPromiseRef.current = null;
+      });
+      drainPromiseRef.current = p;
+      return p;
+    },
+    [parseTranscript, toTask, nextLiveId],
+  );
+
+  // Wait until every pending phrase has been enriched (used when finishing).
+  const settleQueue = useCallback(
+    async (session: number) => {
+      while (pendingRef.current.length > 0 || drainPromiseRef.current) {
+        await (drainPromiseRef.current ?? drainQueue(session));
+      }
+    },
+    [drainQueue],
+  );
+
+  // Interim results: text as it's being spoken. Shows a card immediately and
+  // streams the growing transcript into it — no waiting for a pause.
+  const makeInterimHandler = useCallback(
+    (session: number) =>
+      (text: string) => {
+        if (session !== sessionRef.current || pausedRef.current) return;
+        const t = text.trim();
+        if (!t) return;
+        if (draftIdRef.current == null) {
+          const id = nextLiveId();
+          draftIdRef.current = id;
+          liveCountRef.current += 1;
+          setState((s) => ({
+            ...s,
+            tasks: [draftTask(t, id), ...s.tasks],
+            liveIds: [id, ...s.liveIds],
+          }));
+        } else {
+          const id = draftIdRef.current;
+          setState((s) => ({
+            ...s,
+            tasks: s.tasks.map((tk) => (tk.id === id ? { ...tk, title: t } : tk)),
+          }));
+        }
+      },
+    [draftTask, nextLiveId],
+  );
+
+  // A phrase just finalized: lock the draft card's text (or create one if the
+  // engine skipped interim), then queue it for background enrichment.
+  const makeChunkHandler = useCallback(
+    (session: number) =>
+      (text: string) => {
+        if (session !== sessionRef.current || pausedRef.current) return;
+        const t = text.trim();
+        if (!t) return;
+        let id = draftIdRef.current;
+        if (id == null) {
+          id = nextLiveId();
+          liveCountRef.current += 1;
+          const cardId = id;
+          setState((s) => ({
+            ...s,
+            tasks: [draftTask(t, cardId), ...s.tasks],
+            liveIds: [cardId, ...s.liveIds],
+          }));
+        } else {
+          const cardId = id;
+          setState((s) => ({
+            ...s,
+            tasks: s.tasks.map((tk) => (tk.id === cardId ? { ...tk, title: t } : tk)),
+          }));
+        }
+        draftIdRef.current = null; // next phrase opens a fresh draft
+        pendingRef.current.push({ id, text: t });
+        void drainQueue(session);
+      },
+    [draftTask, drainQueue, nextLiveId],
+  );
+
+  // Start (or restart) a dictation session: reset the live machinery, show the
+  // Listening view, and stream phrases as they're recognized.
+  const startSession = useCallback(() => {
     clearTimers();
-    setState((s) => ({ ...s, screen: "listening", paused: false, composing: false }));
-    speech.start().catch(() => {
+    sessionRef.current += 1;
+    const session = sessionRef.current;
+    pendingRef.current = [];
+    draftIdRef.current = null;
+    drainPromiseRef.current = null;
+    pausedRef.current = false;
+    liveCountRef.current = 0;
+    setState((s) => ({
+      ...s,
+      screen: "listening",
+      paused: false,
+      composing: false,
+      liveIds: [],
+    }));
+    // Open a parallel metering stream so the waveform reacts to real speech.
+    // Best-effort: failure here never blocks recognition.
+    void mic.start();
+    speech.start(makeChunkHandler(session), makeInterimHandler(session)).catch(() => {
       // Mic denied or unsupported → surface the error screen, never silent.
+      mic.stop();
       setState((s) => ({ ...s, screen: "error" }));
     });
-  }, [clearTimers, speech]);
+  }, [clearTimers, makeChunkHandler, makeInterimHandler, mic, speech]);
+
+  const tapMic = startSession;
+  const retry = startSession;
 
   const cancel = useCallback(() => {
     clearTimers();
+    sessionRef.current += 1; // invalidate any in-flight parses
+    pendingRef.current = [];
+    draftIdRef.current = null;
+    drainPromiseRef.current = null;
+    liveCountRef.current = 0;
     speech.abort();
-    setState((s) => ({ ...s, screen: "tasks" }));
-  }, [clearTimers, speech]);
+    mic.stop();
+    // Cancel (the ✕) discards this session's live cards — "never mind".
+    setState((s) => {
+      const drop = new Set(s.liveIds);
+      return {
+        ...s,
+        screen: "tasks",
+        tasks: s.tasks.filter((t) => !drop.has(t.id)),
+        liveIds: [],
+      };
+    });
+  }, [clearTimers, mic, speech]);
 
   const togglePause = useCallback(() => {
-    setState((s) => ({ ...s, paused: !s.paused }));
+    pausedRef.current = !pausedRef.current;
+    setState((s) => ({ ...s, paused: pausedRef.current }));
   }, []);
 
-  // Finish: stop listening, parse the transcript into structured tasks, and
-  // append them optimistically. Any failure routes to the error screen.
+  // Commit the live cards already on screen: brief confirmation toast, then the
+  // task list. No Processing step — the cards are already saved facts.
+  const commitLive = useCallback(() => {
+    const n = liveCountRef.current;
+    setState((s) => ({ ...s, screen: "confirmation", lastAdded: n, liveIds: [] }));
+    later(() => {
+      setState((s) => (s.screen === "confirmation" ? { ...s, screen: "tasks" } : s));
+    }, 3000);
+  }, [later]);
+
+  // Finish: stop listening, make sure every queued phrase is parsed, then commit.
+  // If the live pass produced nothing, fall back to a single full-transcript
+  // parse (never fail silently — no tasks at all routes to the error screen).
   const finish = useCallback(async () => {
     clearTimers();
-    setState((s) => ({ ...s, screen: "processing" }));
+    const session = sessionRef.current;
+    let transcript = "";
+    let stopErr = false;
     try {
-      const transcript = await speech.stop();
-      const res = await fetch("/api/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript }),
-      });
-      if (!res.ok) throw new Error("parse failed");
-      const data = (await res.json()) as ParseResponse;
-      if (!data.tasks.length) throw new Error("no tasks");
-
-      const newTasks = data.tasks.map((p, i) => toTask(p, i));
-      setState((s) => ({
-        ...s,
-        screen: "confirmation",
-        tasks: [...newTasks, ...s.tasks],
-        lastAdded: newTasks.length,
-      }));
-      later(() => {
-        setState((s) => (s.screen === "confirmation" ? { ...s, screen: "tasks" } : s));
-      }, 3000);
+      transcript = await speech.stop();
     } catch {
-      // Nothing understood / network / parse error → visible error, never silent.
-      setState((s) => ({ ...s, screen: "error" }));
+      stopErr = true;
     }
-  }, [clearTimers, later, speech, toTask]);
+    mic.stop();
+    await settleQueue(session);
+    if (session !== sessionRef.current) return; // canceled while finishing
+
+    if (liveCountRef.current > 0) {
+      commitLive();
+      return;
+    }
+    if (stopErr) {
+      setState((s) => ({ ...s, screen: "error" }));
+      return;
+    }
+    // Fallback: nothing recognized live — parse the whole transcript once.
+    setState((s) => ({ ...s, screen: "processing" }));
+    const parsed = await parseTranscript(transcript);
+    if (session !== sessionRef.current) return;
+    if (!parsed) {
+      setState((s) => ({ ...s, screen: "error" }));
+      return;
+    }
+    const newTasks = parsed.map((p, i) => toTask(p, i));
+    setState((s) => ({
+      ...s,
+      screen: "confirmation",
+      tasks: [...newTasks, ...s.tasks],
+      lastAdded: newTasks.length,
+    }));
+    later(() => {
+      setState((s) => (s.screen === "confirmation" ? { ...s, screen: "tasks" } : s));
+    }, 3000);
+  }, [clearTimers, commitLive, later, mic, parseTranscript, settleQueue, speech, toTask]);
 
   const dismiss = useCallback(() => {
     clearTimers();
     setState((s) => ({ ...s, screen: "tasks" }));
   }, [clearTimers]);
 
-  const retry = useCallback(() => {
-    clearTimers();
-    setState((s) => ({ ...s, screen: "listening", paused: false }));
-    speech.start().catch(() => {
-      setState((s) => ({ ...s, screen: "error" }));
-    });
-  }, [clearTimers, speech]);
-
   // ── Day strip ─────────────────────────────────────────────────────────────
   const selectDay = useCallback((i: number) => {
-    if (i < 0 || i > 6) return;
+    if (i < 0 || i >= days.length) return;
     setState((s) => ({ ...s, sel: i, swipe: null }));
-  }, []);
+  }, [days.length]);
 
   const toggleSlot = useCallback((k: SlotKey) => {
     setState((s) => ({
@@ -316,6 +567,9 @@ export function usePlanner() {
   return {
     state,
     hydrated,
+    days,
+    todayIndex,
+    mic,
     actions: {
       tapMic,
       cancel,

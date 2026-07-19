@@ -1,11 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { DAYS, DEFAULT_DAY } from "@/lib/data";
+import { STRIP_LENGTH, TODAY_OFFSET } from "@/lib/dates";
 import { TASK_SCHEMA, type ParseResponse } from "@/lib/parse";
 
 const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
 
-// The fixed demo week as context for relative-day resolution.
-const WEEK = DAYS.map((d, i) => ({ index: i, weekday: d.full }));
+interface StripDay {
+  index: number;
+  weekday: string;
+}
 
 const SYSTEM_PROMPT = `You turn a spoken Ukrainian to-do dictation into structured tasks.
 
@@ -13,10 +15,13 @@ The user dictates in Ukrainian; the transcript may contain ONE or SEVERAL tasks.
 Extract every distinct task. For each task, return:
 - title: a short, clean action in the user's language. Strip filler like
   "нагадай мені", "мені треба", "не забути".
-- day: an integer 0–6 indexing this week. Resolve relative words against the
-  week you are given and "today". "сьогодні" = today's index; "завтра" = the
-  next index; a named weekday ("у п'ятницю") = that weekday's index. If no day
-  is mentioned, use today's index.
+- day: an integer index into the "This week" array you are given below (its
+  valid range is 0 to the last index in that array). Resolve relative words
+  against that array and today's index: "сьогодні" = today's index; "завтра" =
+  today's index + 1; a named weekday ("у п'ятницю") = the NEAREST index that is
+  >= today's index and whose weekday matches (the array spans several weeks, so
+  the same weekday appears more than once — always pick the closest upcoming
+  one). If no day is mentioned, use today's index.
 - slot: "morning" (until ~11:59), "afternoon" (12:00–16:59), "evening"
   (17:00+), or "anytime" if no time is mentioned.
 - meta: a short human label for the time/day if one was mentioned
@@ -24,15 +29,42 @@ Extract every distinct task. For each task, return:
 - priority: true ONLY when the words signal urgency ("терміново", "asap",
   "негайно", "до п'ятниці", "перш за все"). Judge by the words alone.
 - notes: any extra execution detail mentioned, otherwise null.
+- icon: the ONE category glyph that best fits the task's meaning. Choose from:
+  "brief" (work / job / professional), "mail" (email / message / letter),
+  "users" (meeting or appointment with people), "card" (payment / bill / money /
+  banking), "home" (household chores / errands / cleaning), "phone" (a phone
+  call), "cart" (shopping / buying / groceries), "heart" (health / doctor /
+  self-care), "activity" (exercise / sport / workout / run), "book" (reading /
+  studying / learning), "plane" (travel / trip / flight), "food" (cooking /
+  meals / eating out), "doc" (documents / paperwork / reports / forms), "pen"
+  (writing / notes / creative work), "gift" (gifts / birthdays / celebrations),
+  "calendar" (a scheduled event when none of the above fit). Use "dot" ONLY when
+  nothing else reasonably matches. Pick by the task's meaning, not by time of day.
 
 If the transcript contains nothing task-like, return an empty tasks array.
 Return ONLY the structured object.`;
 
 export async function POST(req: Request) {
   let transcript = "";
+  let todayIndex = TODAY_OFFSET;
+  let week: StripDay[] | null = null;
   try {
     const body = await req.json();
     transcript = typeof body?.transcript === "string" ? body.transcript.trim() : "";
+    // The client sends its own strip so relative days resolve against exactly
+    // what the user sees, regardless of the server's clock/timezone.
+    if (
+      typeof body?.todayIndex === "number" &&
+      body.todayIndex >= 0 &&
+      body.todayIndex < STRIP_LENGTH
+    ) {
+      todayIndex = body.todayIndex;
+    }
+    if (Array.isArray(body?.days)) {
+      week = (body.days as StripDay[])
+        .filter((d) => typeof d?.index === "number" && typeof d?.weekday === "string")
+        .map((d) => ({ index: d.index, weekday: d.weekday }));
+    }
   } catch {
     return Response.json({ error: "empty" }, { status: 400 });
   }
@@ -40,11 +72,14 @@ export async function POST(req: Request) {
     return Response.json({ error: "empty" }, { status: 400 });
   }
 
+  const todayWeekday = week?.find((d) => d.index === todayIndex)?.weekday ?? "today";
   const userContent = [
-    `Today is index ${DEFAULT_DAY} (${DAYS[DEFAULT_DAY].full}).`,
-    `This week: ${JSON.stringify(WEEK)}.`,
+    `Today is index ${todayIndex} (${todayWeekday}).`,
+    week ? `This week: ${JSON.stringify(week)}.` : "",
     `Transcript: "${transcript}"`,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   try {
     const msg = await client.messages.create({

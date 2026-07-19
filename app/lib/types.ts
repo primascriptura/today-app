@@ -1,16 +1,31 @@
 // Core domain types for Today. Mirrors brain/Concept-Model.md: a Task is the
-// one concrete thing to do; a Dictation (voice) is stubbed for now (no AI yet).
+// one concrete thing to do; a Dictation (voice) is captured via the Web Speech
+// API and parsed into Tasks live, one card per recognized phrase.
 
 export type IconKey =
+  // Task-category glyphs (seed data + AI-assigned per dictated task).
   | "brief"
   | "mail"
   | "users"
   | "card"
   | "home"
+  | "phone"
+  | "cart"
+  | "heart"
+  | "activity"
+  | "book"
+  | "plane"
+  | "food"
+  | "doc"
+  | "pen"
+  | "gift"
+  | "calendar"
+  // Time-of-day glyphs (used by the slot headers, not task categories).
   | "sunrise"
   | "sun"
   | "moon"
   | "clock"
+  // Generic fallback when nothing fits.
   | "dot";
 
 export type SlotKey = "morning" | "afternoon" | "evening" | "anytime";
@@ -48,8 +63,19 @@ export interface DayInfo {
   n: number;
   /** Short weekday label (Sun, Mon, …). */
   wd: string;
-  /** Full weekday name used in the header title. */
+  /** Full weekday name (Sunday, …). */
   full: string;
+  /** Calendar date as YYYY-MM-DD — the stable identity of this day. */
+  iso: string;
+  /** True for the real current day. Drives the "today" marker in the strip. */
+  isToday: boolean;
+  /**
+   * Human title for the header: "Today" / "Yesterday" / "Tomorrow" for the
+   * three days around now, otherwise the full weekday name.
+   */
+  label: string;
+  /** Full date line under the header, e.g. "July 19th, 2026". */
+  dateLabel: string;
 }
 
 export interface SlotInfo {

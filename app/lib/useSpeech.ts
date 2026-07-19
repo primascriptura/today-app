@@ -51,6 +51,12 @@ function getCtor(): (new () => SR) | null {
 export function useSpeech() {
   const recRef = useRef<SR | null>(null);
   const finalRef = useRef("");
+  // Fires once per finalized utterance (after a natural pause), so the caller
+  // can parse each phrase live instead of waiting for stop(). Set by start().
+  const onChunkRef = useRef<((text: string) => void) | null>(null);
+  // Fires continuously with the in-progress (not-yet-final) transcript, so a
+  // card can appear and stream text WHILE the user is still speaking.
+  const onInterimRef = useRef<((text: string) => void) | null>(null);
   // Resolver for stop(): set when recognition ends.
   const endResolveRef = useRef<((t: string) => void) | null>(null);
   const endRejectRef = useRef<((e: SpeechError) => void) | null>(null);
@@ -58,7 +64,8 @@ export function useSpeech() {
 
   const isSupported = useCallback(() => getCtor() !== null, []);
 
-  const start = useCallback(() => {
+  const start = useCallback(
+    (onChunk?: (text: string) => void, onInterim?: (text: string) => void) => {
     return new Promise<void>((resolve, reject) => {
       const Ctor = getCtor();
       if (!Ctor) {
@@ -68,16 +75,30 @@ export function useSpeech() {
       const rec = new Ctor();
       rec.lang = "uk-UA";
       rec.continuous = true;
-      rec.interimResults = false;
+      // Interim results stream partial text as the user speaks, so a card can
+      // appear immediately instead of waiting for the phrase to finalize.
+      rec.interimResults = true;
       finalRef.current = "";
       errorRef.current = null;
+      onChunkRef.current = onChunk ?? null;
+      onInterimRef.current = onInterim ?? null;
 
       rec.onresult = (e: SRResultEvent) => {
+        let interim = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
-          if (e.results[i].isFinal) {
-            finalRef.current += e.results[i][0].transcript + " ";
+          const result = e.results[i];
+          if (result.isFinal) {
+            const chunk = result[0].transcript.trim();
+            finalRef.current += chunk + " ";
+            // Emit the just-finalized phrase so the caller can parse it live.
+            if (chunk) onChunkRef.current?.(chunk);
+          } else {
+            // Accumulate the in-progress phrase for a live-updating card.
+            interim += result[0].transcript;
           }
         }
+        const partial = interim.trim();
+        if (partial) onInterimRef.current?.(partial);
       };
       rec.onerror = (e: SRErrorEvent) => {
         const code = e?.error;
@@ -132,6 +153,8 @@ export function useSpeech() {
     const rec = recRef.current;
     endResolveRef.current = null;
     endRejectRef.current = null;
+    onChunkRef.current = null;
+    onInterimRef.current = null;
     if (rec) rec.abort();
     recRef.current = null;
   }, []);

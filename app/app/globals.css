@@ -1,6 +1,6 @@
 /*
  * Today — global tokens & base styles.
- * Design system: "Organic" (Caprasimo + Figtree). Tokens ported from the
+ * Design system: "Organic" (Caprasimo + Inter). Tokens ported from the
  * Organic styles.css so this app matches the source design 1:1. The app-local
  * accent (Indigo by default) overrides the Organic terracotta accent, exactly
  * as Today.dc.html did.
@@ -75,6 +75,13 @@ a {
 @keyframes taskLeave {
   from { opacity: 1; max-height: 96px; margin-bottom: 12px; }
   to { opacity: 0; max-height: 0; margin-bottom: 0; transform: translateX(-40px); }
+}
+/* Live-dictation card drop-in: drops in from a stronger tilt and SETTLES at a
+   light resting angle (not straight), so each captured card keeps a playful
+   hand-tossed lean. Never scales from 0 (starts at .96). */
+@keyframes taskEnter {
+  from { opacity: 0; transform: translateY(12px) rotate(-5deg) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) rotate(-2.5deg) scale(1); }
 }
 @keyframes sheetUp {
   from { transform: translateY(30px); }

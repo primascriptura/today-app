@@ -1,7 +1,8 @@
 "use client";
 
-// Transient "parsing" indicator. STUBBED: no real work happens — it's a short
-// timed step in usePlanner before the confirmation toast.
+// Transient "parsing" indicator, shown only on the finish() fallback path —
+// while the whole transcript is parsed at once because nothing was recognized
+// live. The live dictation path skips this entirely (cards already on screen).
 export default function ProcessingView() {
   const dot = (delay: string): React.CSSProperties => ({
     width: 12,

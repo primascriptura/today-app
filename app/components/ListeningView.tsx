@@ -1,16 +1,30 @@
 "use client";
 
+import type { RefObject } from "react";
+import TaskRow from "./TaskRow";
 import Waveform from "./Waveform";
+import type { Task } from "@/lib/types";
 import type { PlannerActions } from "@/lib/usePlanner";
 
 interface ListeningViewProps {
   paused: boolean;
+  /** Tasks recognized so far this session (newest first) — the live card stack. */
+  liveTasks: Task[];
+  /** Live mic loudness + spectrum driving the waveform. */
+  levelRef: RefObject<number>;
+  bandsRef: RefObject<number[]>;
   actions: PlannerActions;
 }
 
-// Voice-capture screen. STUBBED: nothing is actually recorded — Finish just
-// hands off to the (fake) processing step.
-export default function ListeningView({ paused, actions }: ListeningViewProps) {
+// No-op handlers: cards are display-only while dictating (they become fully
+// swipeable/completable once committed to the task list).
+const noop = () => {};
+
+// Voice-capture screen. As phrases are recognized, the "Try saying" prompt
+// cross-fades out and recognized task cards drop into a live stack.
+export default function ListeningView({ paused, liveTasks, levelRef, bandsRef, actions }: ListeningViewProps) {
+  const hasCards = liveTasks.length > 0;
+
   return (
     <div
       style={{
@@ -35,55 +49,93 @@ export default function ListeningView({ paused, actions }: ListeningViewProps) {
         </button>
       </div>
 
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              letterSpacing: ".06em",
-              color: "var(--app-accent-strong)",
-              marginBottom: 18,
-            }}
-          >
-            Try saying
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-heading), serif",
-              fontSize: 40,
-              lineHeight: 1.12,
-              color: "var(--app-accent-strong)",
-              maxWidth: 320,
-            }}
-          >
-            &ldquo;I need to follow up on my job interview&rdquo;
+      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
+        {/* "Try saying" prompt — blur-bridges out the moment the first card lands. */}
+        <div
+          aria-hidden={hasCards}
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            opacity: hasCards ? 0 : 1,
+            filter: hasCards ? "blur(4px)" : "blur(0)",
+            transform: hasCards ? "translateY(-8px)" : "translateY(0)",
+            transition: "opacity .2s ease-out, filter .2s ease-out, transform .2s ease-out",
+            pointerEvents: hasCards ? "none" : "auto",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                letterSpacing: ".06em",
+                color: "var(--app-accent-strong)",
+                marginBottom: 18,
+              }}
+            >
+              Try saying
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-heading), serif",
+                fontSize: 40,
+                lineHeight: 1.12,
+                color: "var(--app-accent-strong)",
+                maxWidth: 320,
+              }}
+            >
+              &ldquo;I need to follow up on my job interview&rdquo;
+            </div>
           </div>
         </div>
+
+        {/* Live card stack — newest on top, each card drops in as it's parsed. */}
+        {hasCards && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              overflowY: "auto",
+              paddingTop: 4,
+            }}
+          >
+            {liveTasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                leavingKind={null}
+                dx={0}
+                entering
+                onComplete={noop}
+                onSwipeStart={noop}
+                onSwipeMove={noop}
+                onSwipeEnd={noop}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ textAlign: "center", marginBottom: 30 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "#201e1d" }}>
           Listening…
         </div>
-        <div
-          style={{
-            fontSize: 15,
-            color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
-            marginTop: 4,
-          }}
-        >
-          Say everything you need to get done.
-        </div>
+        {!hasCards && (
+          <div
+            style={{
+              fontSize: 15,
+              color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
+              marginTop: 4,
+            }}
+          >
+            Say everything you need to get done.
+          </div>
+        )}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
@@ -105,7 +157,7 @@ export default function ListeningView({ paused, actions }: ListeningViewProps) {
         </button>
 
         <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          <Waveform paused={paused} />
+          <Waveform paused={paused} levelRef={levelRef} bandsRef={bandsRef} />
         </div>
 
         <button
