@@ -1,14 +1,24 @@
 "use client";
 
+import type { Task } from "@/lib/types";
 import type { PlannerActions } from "@/lib/usePlanner";
 
 interface ConfirmationToastProps {
   actions: PlannerActions;
+  /** How many tasks the dictation produced. */
+  count: number;
+  /** The newest task (front of the list), for the single-task label. */
+  task: Task | null;
 }
 
 // Passive, dismissible "✓ Saved" note — the optimistic-save confirmation.
 // Auto-dismisses after ~3s (handled in usePlanner); tap dismisses immediately.
-export default function ConfirmationToast({ actions }: ConfirmationToastProps) {
+export default function ConfirmationToast({ actions, count, task }: ConfirmationToastProps) {
+  const title =
+    count > 1 ? `Saved ${count} tasks` : task ? `Saved · ${task.title}` : "Saved";
+  // Show the time/day label only when a single task was saved.
+  const subtitle = count > 1 ? null : task?.meta ?? null;
+
   return (
     <div
       onClick={actions.dismiss}
@@ -56,17 +66,19 @@ export default function ConfirmationToast({ actions }: ConfirmationToastProps) {
         </span>
         <div style={{ lineHeight: 1.3 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#201e1d" }}>
-            Saved · Follow up on job interview
+            {title}
           </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
-              marginTop: 1,
-            }}
-          >
-            Tomorrow, 11:00 AM
-          </div>
+          {subtitle && (
+            <div
+              style={{
+                fontSize: 13,
+                color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
+                marginTop: 1,
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -83,7 +83,13 @@ export default function Planner() {
         )}
         {screen === "processing" && <ProcessingView />}
         {screen === "error" && <ErrorView actions={actions} />}
-        {screen === "confirmation" && <ConfirmationToast actions={actions} />}
+        {screen === "confirmation" && (
+          <ConfirmationToast
+            actions={actions}
+            count={state.lastAdded}
+            task={state.tasks[0] ?? null}
+          />
+        )}
       </main>
     </div>
   );

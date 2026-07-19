@@ -26,6 +26,8 @@ interface PlannerState {
   swipe: { id: number; dx: number } | null;
   leaving: { id: number; kind: "complete" | "delete" } | null;
   done: number;
+  /** How many tasks the last dictation produced — drives the confirmation copy. */
+  lastAdded: number;
 }
 
 const initialState: PlannerState = {
@@ -41,6 +43,7 @@ const initialState: PlannerState = {
   swipe: null,
   leaving: null,
   done: 0,
+  lastAdded: 0,
 };
 
 export function usePlanner() {
@@ -149,7 +152,12 @@ export function usePlanner() {
       if (!data.tasks.length) throw new Error("no tasks");
 
       const newTasks = data.tasks.map((p, i) => toTask(p, i));
-      setState((s) => ({ ...s, screen: "confirmation", tasks: [...newTasks, ...s.tasks] }));
+      setState((s) => ({
+        ...s,
+        screen: "confirmation",
+        tasks: [...newTasks, ...s.tasks],
+        lastAdded: newTasks.length,
+      }));
       later(() => {
         setState((s) => (s.screen === "confirmation" ? { ...s, screen: "tasks" } : s));
       }, 3000);
