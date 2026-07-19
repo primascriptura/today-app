@@ -31,6 +31,8 @@ export interface Task {
   /** Pastel background behind the task's icon. */
   tint: string;
   priority?: boolean;
+  /** Optional execution detail parsed from a dictation. Stored; not yet rendered. */
+  notes?: string | null;
 }
 
 /** The top-level screen the app is showing. */
