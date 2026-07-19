@@ -13,9 +13,10 @@ updated: 2026-07-19
 ---
 
 ## In progress
-- Next step: wire real speech capture + AI parsing (currently stubbed)
+- Voice→AI wiring code-complete on main; ⚠️ blocked on real key in `app/.env.local` + real-browser mic test
 
 ## Recent shipped work
+- 2026-07-19 — Voice→Claude Haiku parsing wired (useSpeech uk-UA + /api/parse + usePlanner); build green, mic path untested headless
 - 2026-07-19 — Today UI skeleton scaffolded in `app/` (Next.js 16, no AI/backend), verified + pushed [[Decisions#2026-07-19 — Stack: Next.js 16 (App Router) + React state + localStorage, no backend, no Tailwind]]
 
 ## Pending product questions
