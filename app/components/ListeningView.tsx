@@ -3,13 +3,15 @@
 import type { RefObject } from "react";
 import TaskRow from "./TaskRow";
 import Waveform from "./Waveform";
-import type { Task } from "@/lib/types";
+import type { DayInfo, Task } from "@/lib/types";
 import type { PlannerActions } from "@/lib/usePlanner";
 
 interface ListeningViewProps {
   paused: boolean;
   /** Tasks recognized so far this session (newest first) — the live card stack. */
   liveTasks: Task[];
+  /** Day strip, threaded to each card for its date/time label. */
+  days: DayInfo[];
   /** Live mic loudness + spectrum driving the waveform. */
   levelRef: RefObject<number>;
   bandsRef: RefObject<number[]>;
@@ -22,7 +24,7 @@ const noop = () => {};
 
 // Voice-capture screen. As phrases are recognized, the "Try saying" prompt
 // cross-fades out and recognized task cards drop into a live stack.
-export default function ListeningView({ paused, liveTasks, levelRef, bandsRef, actions }: ListeningViewProps) {
+export default function ListeningView({ paused, liveTasks, days, levelRef, bandsRef, actions }: ListeningViewProps) {
   const hasCards = liveTasks.length > 0;
 
   return (
@@ -108,6 +110,7 @@ export default function ListeningView({ paused, liveTasks, levelRef, bandsRef, a
               <TaskRow
                 key={task.id}
                 task={task}
+                days={days}
                 leavingKind={null}
                 dx={0}
                 entering

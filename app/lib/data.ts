@@ -27,6 +27,10 @@ export const DATE_COLOR: Record<string, string> = {
   later: "#6b4ea8",
 };
 
+// On-brand confetti palette for the one-time first-task-completion
+// celebration — cycled per piece, never randomized off-brand/rainbow.
+export const CONFETTI_COLORS = ["#3b4b8c", "#2c3866", "#b7bfe4"];
+
 // Soft pastel behind each task icon, keyed by category so a given kind of task
 // always reads with the same colour. Falls back to lavender for anything unset.
 export const ICON_TINTS: Record<IconKey, string> = {

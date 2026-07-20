@@ -87,6 +87,14 @@ a {
   from { transform: translateY(30px); }
   to { transform: translateY(0); }
 }
+/* One-time first-task-completion celebration: a single piece arcs down and
+   rotates while fading, per-piece drift/rotation supplied via custom
+   properties so one keyframe covers the whole burst. */
+@keyframes confettiFall {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  12% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--drift-x, 0px), 90px) rotate(var(--rotate, 180deg)); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

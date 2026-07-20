@@ -1,5 +1,5 @@
 import { STRIP_LENGTH } from "./dates";
-import type { IconKey, SlotKey } from "./types";
+import type { Deadline, IconKey, RepeatRule, SlotKey, TaskTime } from "./types";
 
 /** Valid day indices (0…STRIP_LENGTH-1) — the fixed size of the rolling strip. */
 const DAY_INDICES = Array.from({ length: STRIP_LENGTH }, (_, i) => i);
@@ -38,6 +38,12 @@ export interface ParsedTask {
   meta: string | null;
   priority: boolean;
   notes: string | null;
+  /** Start time + optional duration, or null when no time was mentioned. */
+  time: TaskTime | null;
+  /** Recurrence if the dictation implied one, else "none". */
+  repeat: RepeatRule;
+  /** Hard due date if one was clearly stated, else null. */
+  deadline: Deadline | null;
   /** Category glyph chosen by the parser (one of TASK_ICON_KEYS). */
   icon: IconKey;
 }
@@ -60,7 +66,7 @@ export const TASK_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "day", "slot", "meta", "priority", "notes", "icon"],
+        required: ["title", "day", "slot", "meta", "priority", "notes", "time", "repeat", "deadline", "icon"],
         properties: {
           title: { type: "string" },
           day: { type: "integer", enum: DAY_INDICES },
@@ -71,6 +77,28 @@ export const TASK_SCHEMA = {
           meta: { type: ["string", "null"] },
           priority: { type: "boolean" },
           notes: { type: ["string", "null"] },
+          time: {
+            type: ["object", "null"],
+            additionalProperties: false,
+            required: ["start", "durationMin"],
+            properties: {
+              start: { type: "string" }, // "HH:MM" 24h
+              durationMin: { type: ["integer", "null"] },
+            },
+          },
+          repeat: {
+            type: "string",
+            enum: ["none", "daily", "weekly", "monthly", "yearly"],
+          },
+          deadline: {
+            type: ["object", "null"],
+            additionalProperties: false,
+            required: ["iso", "time"],
+            properties: {
+              iso: { type: "string" }, // "YYYY-MM-DD"
+              time: { type: ["string", "null"] }, // "HH:MM" 24h or null
+            },
+          },
           icon: { type: "string", enum: TASK_ICON_KEYS },
         },
       },

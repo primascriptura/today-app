@@ -7,6 +7,7 @@ const client = new Anthropic(); // reads ANTHROPIC_API_KEY from the environment
 interface StripDay {
   index: number;
   weekday: string;
+  iso?: string;
 }
 
 const SYSTEM_PROMPT = `You turn a spoken Ukrainian to-do dictation into structured tasks.
@@ -29,6 +30,16 @@ Extract every distinct task. For each task, return:
 - priority: true ONLY when the words signal urgency ("терміново", "asap",
   "негайно", "до п'ятниці", "перш за все"). Judge by the words alone.
 - notes: any extra execution detail mentioned, otherwise null.
+- time: if a clock time is mentioned ("о 10", "о пів на третю", "на 14:00"),
+  return { "start": "HH:MM" 24h, "durationMin": <integer minutes or null> }.
+  Set durationMin only when a length is stated ("на годину" = 60, "пів години"
+  = 30, "на дві години" = 120). If no time is mentioned, return null.
+- repeat: "daily" ("щодня"), "weekly" ("щотижня"), "monthly" ("щомісяця"),
+  "yearly" ("щороку"); otherwise "none".
+- deadline: ONLY when a hard due date is clearly stated as a deadline
+  ("дедлайн", "до <дата>", "крайній термін"). Return
+  { "iso": "YYYY-MM-DD", "time": "HH:MM" 24h or null }, resolving the date
+  against the "This week" array's iso values. If no deadline is stated, null.
 - icon: the ONE category glyph that best fits the task's meaning. Choose from:
   "brief" (work / job / professional), "mail" (email / message / letter),
   "users" (meeting or appointment with people), "card" (payment / bill / money /
@@ -63,7 +74,7 @@ export async function POST(req: Request) {
     if (Array.isArray(body?.days)) {
       week = (body.days as StripDay[])
         .filter((d) => typeof d?.index === "number" && typeof d?.weekday === "string")
-        .map((d) => ({ index: d.index, weekday: d.weekday }));
+        .map((d) => ({ index: d.index, weekday: d.weekday, iso: d.iso }));
     }
   } catch {
     return Response.json({ error: "empty" }, { status: 400 });

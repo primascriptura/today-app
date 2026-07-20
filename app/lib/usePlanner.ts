@@ -4,15 +4,54 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ICON_TINTS, makeSeedTasks } from "./data";
 import { buildStrip } from "./dates";
 import type { ParseResponse, ParsedTask } from "./parse";
-import type { Screen, SlotKey, Task } from "./types";
+import type {
+  Deadline,
+  Priority,
+  RepeatRule,
+  Reminder,
+  Screen,
+  SlotKey,
+  Task,
+  TaskTime,
+} from "./types";
 import { useMicLevel } from "./useMicLevel";
 import { useSpeech } from "./useSpeech";
 
-const STORAGE_KEY = "today.v1";
+const STORAGE_KEY = "today.v2";
+// Pre-v2 tasks stored `priority` as a boolean and lacked time/deadline/repeat/
+// reminders. Read it as a fallback so an existing install keeps its tasks.
+const LEGACY_KEY = "today.v1";
 
 interface Persisted {
   tasks: Task[];
   done: number;
+}
+
+/** Kinds of attribute picker the compose sheet can open, one at a time. */
+export type PickerKind =
+  | "date"
+  | "time"
+  | "repeat"
+  | "deadline"
+  | "priority"
+  | "reminder";
+
+/**
+ * Normalize a stored task into the current shape: map the legacy boolean
+ * priority to a level (true → P2, false → none) and default the new fields.
+ */
+function migrateTask(raw: Task & { priority?: boolean | Priority }): Task {
+  const p = raw.priority;
+  const priority: Priority =
+    typeof p === "boolean" ? (p ? 2 : 4) : typeof p === "number" ? p : 4;
+  return {
+    ...raw,
+    priority,
+    time: raw.time ?? null,
+    repeat: raw.repeat ?? "none",
+    deadline: raw.deadline ?? null,
+    reminders: raw.reminders ?? [],
+  };
 }
 
 interface PlannerState {
@@ -22,12 +61,23 @@ interface PlannerState {
   paused: boolean;
   composing: boolean;
   draft: string;
-  chipDate: boolean;
-  chipPriority: boolean;
+  /** Optional free-text execution detail, typed alongside the title. */
+  draftNotes: string;
+  /** Draft task attributes, set via the compose-sheet pickers. */
+  draftDate: number | null; // strip index; null = no date set
+  draftTime: TaskTime | null;
+  draftRepeat: RepeatRule;
+  draftDeadline: Deadline | null;
+  draftPriority: Priority; // 4 = none
+  draftReminders: Reminder[];
+  /** Which attribute picker is open, if any. */
+  activePicker: PickerKind | null;
   collapsed: Record<string, boolean>;
   swipe: { id: number; dx: number } | null;
   leaving: { id: number; kind: "complete" | "delete" } | null;
   done: number;
+  /** One-time first-ever-completion celebration (confetti + badge). Never persisted. */
+  celebrate: boolean;
   /** How many tasks the last dictation produced — drives the confirmation copy. */
   lastAdded: number;
   /**
@@ -47,20 +97,30 @@ const initialState: PlannerState = {
   paused: false,
   composing: false,
   draft: "",
-  chipDate: false,
-  chipPriority: false,
+  draftNotes: "",
+  draftDate: null,
+  draftTime: null,
+  draftRepeat: "none",
+  draftDeadline: null,
+  draftPriority: 4,
+  draftReminders: [],
+  activePicker: null,
   collapsed: {},
   swipe: null,
   leaving: null,
   done: 0,
+  celebrate: false,
   lastAdded: 0,
   liveIds: [],
 };
 
 export function usePlanner() {
-  // The rolling day strip, centered on the real current day. Computed once per
-  // mount; stable for the session.
-  const { days, todayIndex } = useMemo(() => buildStrip(new Date()), []);
+  // The real current day, captured once per mount so the strip, calendars, and
+  // quick-date resolvers all agree. Stable for the session.
+  const today = useMemo(() => new Date(), []);
+  const todayWeekday = today.getDay(); // 0=Sun … 6=Sat
+  // The rolling day strip, centered on the real current day.
+  const { days, todayIndex } = useMemo(() => buildStrip(today), [today]);
   const [state, setState] = useState<PlannerState>(() => ({
     ...initialState,
     tasks: makeSeedTasks(todayIndex),
@@ -110,16 +170,20 @@ export function usePlanner() {
   // Load once on mount (client only), so SSR + first render stay deterministic.
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const raw =
+        window.localStorage.getItem(STORAGE_KEY) ??
+        window.localStorage.getItem(LEGACY_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<Persisted>;
         if (Array.isArray(parsed.tasks)) {
           // SSR-safe rehydration: server + first client render use the seed
           // (so hydration matches); this swaps in stored data right after mount.
+          // Migrate each task so legacy (v1) shapes upgrade to the current model.
+          const migrated = (parsed.tasks as Task[]).map(migrateTask);
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setState((s) => ({
             ...s,
-            tasks: parsed.tasks as Task[],
+            tasks: migrated,
             done: typeof parsed.done === "number" ? parsed.done : 0,
           }));
         }
@@ -151,9 +215,13 @@ export function usePlanner() {
     when: p.day === todayIndex ? "today" : "later",
     slot: p.slot,
     day: p.day,
+    time: p.time ?? null,
+    repeat: p.repeat ?? "none",
+    deadline: p.deadline ?? null,
+    reminders: [],
     icon: p.icon,
     tint: ICON_TINTS[p.icon] ?? ICON_TINTS.dot,
-    priority: p.priority,
+    priority: p.priority ? 2 : 4,
     notes: p.notes,
   }), [todayIndex]);
 
@@ -166,9 +234,13 @@ export function usePlanner() {
     when: "today",
     slot: "anytime",
     day: todayIndex,
+    time: null,
+    repeat: "none",
+    deadline: null,
+    reminders: [],
     icon: "dot",
     tint: ICON_TINTS.dot,
-    priority: false,
+    priority: 4,
     notes: null,
   }), [todayIndex]);
 
@@ -186,7 +258,7 @@ export function usePlanner() {
           body: JSON.stringify({
             transcript,
             todayIndex,
-            days: days.map((d, index) => ({ index, weekday: d.full })),
+            days: days.map((d, index) => ({ index, weekday: d.full, iso: d.iso })),
           }),
         });
         if (!res.ok) return null;
@@ -445,51 +517,106 @@ export function usePlanner() {
   }, []);
 
   // ── Compose (manual entry) ────────────────────────────────────────────────
+  // Reset every draft attribute; the Date chip defaults to the day currently
+  // shown in the strip so "when" is meaningful the moment the sheet opens.
   const openCompose = useCallback(() => {
-    setState((s) => ({ ...s, composing: true }));
+    setState((s) => ({
+      ...s,
+      composing: true,
+      draft: "",
+      draftNotes: "",
+      draftDate: s.sel,
+      draftTime: null,
+      draftRepeat: "none",
+      draftDeadline: null,
+      draftPriority: 4,
+      draftReminders: [],
+      activePicker: null,
+    }));
   }, []);
 
   const closeCompose = useCallback(() => {
-    setState((s) => ({ ...s, composing: false }));
+    setState((s) => ({ ...s, composing: false, activePicker: null }));
   }, []);
 
   const setDraft = useCallback((value: string) => {
     setState((s) => ({ ...s, draft: value }));
   }, []);
 
-  const toggleDate = useCallback(() => {
-    setState((s) => ({ ...s, chipDate: !s.chipDate }));
+  const setDraftNotes = useCallback((value: string) => {
+    setState((s) => ({ ...s, draftNotes: value }));
   }, []);
 
-  const togglePriority = useCallback(() => {
-    setState((s) => ({ ...s, chipPriority: !s.chipPriority }));
+  const openPicker = useCallback((kind: PickerKind) => {
+    setState((s) => ({ ...s, activePicker: kind }));
+  }, []);
+
+  const closePicker = useCallback(() => {
+    setState((s) => ({ ...s, activePicker: null }));
+  }, []);
+
+  const setDraftDate = useCallback((day: number | null) => {
+    setState((s) => ({ ...s, draftDate: day }));
+  }, []);
+
+  const setDraftTime = useCallback((time: TaskTime | null) => {
+    setState((s) => ({ ...s, draftTime: time }));
+  }, []);
+
+  const setDraftRepeat = useCallback((repeat: RepeatRule) => {
+    setState((s) => ({ ...s, draftRepeat: repeat }));
+  }, []);
+
+  const setDraftDeadline = useCallback((deadline: Deadline | null) => {
+    setState((s) => ({ ...s, draftDeadline: deadline }));
+  }, []);
+
+  const setDraftPriority = useCallback((priority: Priority) => {
+    setState((s) => ({ ...s, draftPriority: priority }));
+  }, []);
+
+  const setDraftReminders = useCallback((reminders: Reminder[]) => {
+    setState((s) => ({ ...s, draftReminders: reminders }));
   }, []);
 
   const addTyped = useCallback(() => {
     setState((s) => {
       const title = s.draft.trim();
       if (!title) return s;
+      const day = s.draftDate ?? s.sel;
       const task: Task = {
         id: Date.now(),
         title,
-        meta: s.chipDate ? "Today" : null,
-        when: "today",
+        // meta is derived from the structured fields at render time; leave null.
+        meta: null,
+        when: day === todayIndex ? "today" : "later",
         slot: "anytime",
-        day: s.sel,
+        day,
+        time: s.draftTime,
+        repeat: s.draftRepeat,
+        deadline: s.draftDeadline,
+        reminders: s.draftReminders,
         icon: "dot",
         tint: "#e6e9f7",
-        priority: s.chipPriority,
+        priority: s.draftPriority,
+        notes: s.draftNotes.trim() || null,
       };
       return {
         ...s,
         tasks: [task, ...s.tasks],
         composing: false,
         draft: "",
-        chipDate: false,
-        chipPriority: false,
+        draftNotes: "",
+        draftDate: null,
+        draftTime: null,
+        draftRepeat: "none",
+        draftDeadline: null,
+        draftPriority: 4,
+        draftReminders: [],
+        activePicker: null,
       };
     });
-  }, []);
+  }, [todayIndex]);
 
   const typeInstead = useCallback(() => {
     clearTimers();
@@ -501,7 +628,14 @@ export function usePlanner() {
     (id: number) => {
       setState((s) => {
         if (s.leaving) return s;
-        return { ...s, leaving: { id, kind: "complete" }, done: s.done + 1 };
+        // done 0 -> 1 is an exact, already-persisted "first task ever
+        // completed" signal — no separate flag needed.
+        return {
+          ...s,
+          leaving: { id, kind: "complete" },
+          done: s.done + 1,
+          celebrate: s.done === 0 ? true : s.celebrate,
+        };
       });
       later(() => {
         setState((s) => ({
@@ -510,9 +644,17 @@ export function usePlanner() {
           leaving: null,
         }));
       }, 340);
+      // No-op unless this call just turned celebrate on.
+      later(() => {
+        setState((s) => (s.celebrate ? { ...s, celebrate: false } : s));
+      }, 3200);
     },
     [later],
   );
+
+  const dismissCelebration = useCallback(() => {
+    setState((s) => ({ ...s, celebrate: false }));
+  }, []);
 
   const remove = useCallback(
     (id: number) => {
@@ -568,7 +710,9 @@ export function usePlanner() {
     state,
     hydrated,
     days,
+    today,
     todayIndex,
+    todayWeekday,
     mic,
     actions: {
       tapMic,
@@ -582,11 +726,19 @@ export function usePlanner() {
       openCompose,
       closeCompose,
       setDraft,
-      toggleDate,
-      togglePriority,
+      setDraftNotes,
+      openPicker,
+      closePicker,
+      setDraftDate,
+      setDraftTime,
+      setDraftRepeat,
+      setDraftDeadline,
+      setDraftPriority,
+      setDraftReminders,
       addTyped,
       typeInstead,
       complete,
+      dismissCelebration,
       remove,
       swStart,
       swMove,

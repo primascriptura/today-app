@@ -77,3 +77,9 @@ No files-touched / verification / alternatives-rejected essay.
 
 ### 2026-07-19 — Real current date replaces the fixed Jan-2026 demo range
 **Why:** App now reads real today (rolling 21-day strip centered on it, Today/Yesterday/Tomorrow labels + today marker); seeds land on today, and the parser resolves relative days against the client's own strip (sent in the request) so it's timezone-independent. Reverses the "fixed demo week / DEFAULT_DAY=11" placeholder. Task persistence is still index-based (a saved day drifts as the window rolls) — deferred, not addressed.
+
+### 2026-07-20 — Task-creation badges are real pickers; Date chip is the single "when"
+**Why:** The compose sheet's Date/Deadline/Priority/Reminder chips were half-stubbed toggles, and "Date" duplicated a separate disabled day pill. Removed the pill so the Date chip alone owns scheduling (opens a Todoist-style sheet with quick options + calendar + nested Time & Repeat); Deadline/Priority(P1–P4)/Reminder now open real pickers, all persisted on the Task and rendered in the row. Pickers are hand-rolled inline-style components (no shadcn/Tailwind), per the stack decision.
+
+### 2026-07-20 — First-ever task completion gets a one-time confetti + badge
+**Why:** Reuses the existing lifetime `done` counter's 0→1 transition as the trigger (no new persisted flag); scoped to just this one moment, no streaks/milestones. Full spec: `docs/superpowers/specs/2026-07-20-first-task-celebration-design.md`.

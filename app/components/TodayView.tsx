@@ -164,6 +164,7 @@ export default function TodayView({
                       <TaskRow
                         key={t.id}
                         task={t}
+                        days={days}
                         leavingKind={leaving && leaving.id === t.id ? leaving.kind : null}
                         dx={swipe && swipe.id === t.id ? swipe.dx : 0}
                         onComplete={actions.complete}

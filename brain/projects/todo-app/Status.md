@@ -1,7 +1,7 @@
 ---
 type: status
 project: todo-app
-updated: 2026-07-19
+updated: 2026-07-20
 ---
 
 # Project Status
@@ -16,6 +16,8 @@ updated: 2026-07-19
 - Voice→AI + voice-reactive waveform live; ⚠️ only real-browser mic test left (dictation + waveform reaction)
 
 ## Recent shipped work
+- 2026-07-20 — First-task celebration: confetti + badge on first-ever completion, one-time, no new persisted flag [[Decisions#2026-07-20 — First-ever task completion gets a one-time confetti + badge]]
+- 2026-07-20 — Manual-entry pickers made real: Date (quick opts + calendar + nested Time/Repeat), Deadline, Priority P1–P4, Reminders; removed duplicate day pill (Date chip = sole "when"); voice parse extended (time/repeat/deadline); verified live [[Decisions#2026-07-20 — Task-creation badges are real pickers; Date chip is the single "when"]]
 - 2026-07-19 — Real dates: strip centered on real today (Today/Yesterday/Tomorrow labels + real date, today ring+dot marker); seeds + parser use real todayIndex; verified in prod build [[Decisions#2026-07-19 — Real current date replaces the fixed Jan-2026 demo range]]
 - 2026-07-19 — Waveform now reacts to real speech: Web Audio mic meter drives the bars, calm "breathing" baseline in silence (was a fixed decorative cadence); idle render verified, live reaction needs browser mic
 - 2026-07-19 — Real-time dictation: `interimResults` streams a card while speaking + optimistic card enriched in place, so nothing waits on a pause or the Claude round-trip; typecheck + build + /api/parse (client-strip payload) verified
@@ -30,7 +32,7 @@ updated: 2026-07-19
 - Job stories are self-reported (Ihor only) — accepted risk, not validated
 - Batch dictation (Opp B) and error-craft (Opp C) flows not yet breadboarded
 - Eyes-free retry/cancel while driving — unresolved (see Flow-Voice-Capture)
-- Priority scale, archive-reopen, raw transcript visibility — open (see Concept-Model)
+- Archive-reopen, raw transcript visibility — open (see Concept-Model); priority scale decided (P1–P4)
 
 ---
 

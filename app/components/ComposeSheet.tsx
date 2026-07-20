@@ -1,15 +1,31 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
-import type { DayInfo } from "@/lib/types";
-import type { PlannerActions } from "@/lib/usePlanner";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import DateSheet from "./pickers/DateSheet";
+import DeadlineSheet from "./pickers/DeadlineSheet";
+import PrioritySheet from "./pickers/PrioritySheet";
+import ReminderSheet from "./pickers/ReminderSheet";
+import RepeatSheet from "./pickers/RepeatSheet";
+import TimeSheet from "./pickers/TimeSheet";
+import { Flag, PRIORITY_META } from "./pickers/ui";
+import { formatShortDate } from "@/lib/dates";
+import type { DayInfo, Deadline, Priority, RepeatRule, Reminder, TaskTime } from "@/lib/types";
+import type { PickerKind, PlannerActions } from "@/lib/usePlanner";
 
 interface ComposeSheetProps {
   draft: string;
-  chipDate: boolean;
-  chipPriority: boolean;
-  sel: number;
+  draftNotes: string;
+  draftDate: number | null;
+  draftTime: TaskTime | null;
+  draftRepeat: RepeatRule;
+  draftDeadline: Deadline | null;
+  draftPriority: Priority;
+  draftReminders: Reminder[];
+  activePicker: PickerKind | null;
   days: DayInfo[];
+  today: Date;
+  todayIndex: number;
+  todayWeekday: number;
   actions: PlannerActions;
 }
 
@@ -43,22 +59,48 @@ const chipOff: CSSProperties = {
 
 export default function ComposeSheet({
   draft,
-  chipDate,
-  chipPriority,
-  sel,
+  draftNotes,
+  draftDate,
+  draftTime,
+  draftRepeat,
+  draftDeadline,
+  draftPriority,
+  draftReminders,
+  activePicker,
   days,
+  today,
+  todayIndex,
+  todayWeekday,
   actions,
 }: ComposeSheetProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const hasDraft = draft.trim().length > 0;
-  // days[sel].label already reads "Today" / "Yesterday" / weekday.
-  const composeTarget = days[sel]?.label ?? "Today";
 
   useEffect(() => {
     // Open the keyboard as soon as the sheet appears.
     const id = setTimeout(() => inputRef.current?.focus(), 70);
     return () => clearTimeout(id);
   }, []);
+
+  const dateLabel = draftDate != null ? days[draftDate]?.label ?? "Date" : null;
+  const priorityOn = draftPriority !== 4;
+  const reminderCount = draftReminders.length;
+
+  const chip = (opts: {
+    kind: PickerKind;
+    icon: ReactNode;
+    fallback: string;
+    active: boolean;
+    activeLabel?: string;
+  }) => (
+    <button
+      style={opts.active ? chipOn : chipOff}
+      onClick={() => actions.openPicker(opts.kind)}
+    >
+      {opts.icon}
+      {opts.active && opts.activeLabel ? opts.activeLabel : opts.fallback}
+    </button>
+  );
 
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 6 }}>
@@ -107,86 +149,80 @@ export default function ComposeSheet({
               padding: "2px 0",
             }}
           />
-          <div
+          <input
+            value={draftNotes}
+            onChange={(e) => actions.setDraftNotes(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                actions.addTyped();
+              }
+            }}
+            placeholder="Description (optional)"
             style={{
+              width: "100%",
+              border: "none",
+              outline: "none",
+              background: "transparent",
               fontSize: 15,
-              color: "color-mix(in srgb, var(--color-text) 42%, transparent)",
+              fontWeight: 400,
+              color: "#201e1d",
               margin: "12px 0 18px",
+              padding: "2px 0",
             }}
-          >
-            Description
-          </div>
+          />
 
-          {/* Attribute chips */}
+          {/* Attribute chips — each opens a real picker */}
           <div style={{ display: "flex", gap: 9, overflowX: "auto", paddingBottom: 2 }}>
-            <button style={chipDate ? chipOn : chipOff} onClick={actions.toggleDate}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="3" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-              </svg>
-              Date
-            </button>
-            <button style={chipOff} disabled>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="13" r="8" />
-                <path d="M12 9v4l2 2" />
-                <path d="M9 2h6" />
-              </svg>
-              Deadline
-            </button>
-            <button style={chipPriority ? chipOn : chipOff} onClick={actions.togglePriority}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 22V4h12l-2 4 2 4H4" />
-              </svg>
-              Priority
-            </button>
-            <button style={chipOff} disabled>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" />
-              </svg>
-              Reminder
-            </button>
+            {chip({
+              kind: "date",
+              active: draftDate != null,
+              activeLabel: dateLabel ?? undefined,
+              fallback: "Date",
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="3" />
+                  <line x1="3" y1="9" x2="21" y2="9" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                </svg>
+              ),
+            })}
+            {chip({
+              kind: "deadline",
+              active: draftDeadline != null,
+              activeLabel: draftDeadline ? formatShortDate(draftDeadline.iso) : undefined,
+              fallback: "Deadline",
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="13" r="8" />
+                  <path d="M12 9v4l2 2" />
+                  <path d="M9 2h6" />
+                </svg>
+              ),
+            })}
+            {chip({
+              kind: "priority",
+              active: priorityOn,
+              activeLabel: `P${draftPriority}`,
+              fallback: "Priority",
+              icon: <Flag color={priorityOn ? PRIORITY_META[draftPriority].color : "currentColor"} size={16} />,
+            })}
+            {chip({
+              kind: "reminder",
+              active: reminderCount > 0,
+              activeLabel: reminderCount === 1 ? "1 reminder" : `${reminderCount} reminders`,
+              fallback: "Reminder",
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" />
+                </svg>
+              ),
+            })}
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginTop: 18,
-            }}
-          >
-            <button
-              disabled
-              aria-label="Schedule day"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 7,
-                height: 38,
-                padding: "0 14px",
-                borderRadius: 999,
-                border: "1px solid color-mix(in srgb, var(--color-text) 14%, transparent)",
-                background: "transparent",
-                cursor: "default",
-                fontSize: 14,
-                fontWeight: 600,
-                color: "var(--app-accent-strong)",
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="3" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-              </svg>
-              {composeTarget}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-
+          {/* Footer — primary action */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: 18 }}>
             {hasDraft ? (
               <button
                 onClick={actions.addTyped}
@@ -241,6 +277,60 @@ export default function ComposeSheet({
           </div>
         </div>
       </div>
+
+      {/* ── Attribute pickers (stack above the compose sheet) ── */}
+      {activePicker === "date" && (
+        <DateSheet
+          draftDate={draftDate}
+          draftTime={draftTime}
+          draftRepeat={draftRepeat}
+          days={days}
+          today={today}
+          todayIndex={todayIndex}
+          todayWeekday={todayWeekday}
+          onSetDate={actions.setDraftDate}
+          onOpenTime={() => actions.openPicker("time")}
+          onOpenRepeat={() => actions.openPicker("repeat")}
+          onClose={actions.closePicker}
+        />
+      )}
+      {activePicker === "time" && (
+        <TimeSheet
+          value={draftTime}
+          onSave={actions.setDraftTime}
+          onBack={() => actions.openPicker("date")}
+        />
+      )}
+      {activePicker === "repeat" && (
+        <RepeatSheet
+          value={draftRepeat}
+          onSelect={actions.setDraftRepeat}
+          onBack={() => actions.openPicker("date")}
+        />
+      )}
+      {activePicker === "deadline" && (
+        <DeadlineSheet
+          value={draftDeadline}
+          today={today}
+          onSave={actions.setDraftDeadline}
+          onClose={actions.closePicker}
+        />
+      )}
+      {activePicker === "priority" && (
+        <PrioritySheet
+          value={draftPriority}
+          onSelect={actions.setDraftPriority}
+          onClose={actions.closePicker}
+        />
+      )}
+      {activePicker === "reminder" && (
+        <ReminderSheet
+          value={draftReminders}
+          today={today}
+          onChange={actions.setDraftReminders}
+          onClose={actions.closePicker}
+        />
+      )}
     </div>
   );
 }

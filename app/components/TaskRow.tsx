@@ -1,11 +1,15 @@
 "use client";
 
 import Icon from "./Icon";
+import { PRIORITY_META } from "./pickers/ui";
 import { DATE_COLOR } from "@/lib/data";
-import type { Task } from "@/lib/types";
+import { formatShortDate, formatTaskMeta } from "@/lib/dates";
+import type { DayInfo, Task } from "@/lib/types";
 
 interface TaskRowProps {
   task: Task;
+  /** Day strip, used to derive the date/time meta label. */
+  days: DayInfo[];
   /** How this row is animating out, if at all. */
   leavingKind: "complete" | "delete" | null;
   /** Current horizontal swipe offset (0 when not swiping this row). */
@@ -22,6 +26,7 @@ interface TaskRowProps {
 
 export default function TaskRow({
   task,
+  days,
   leavingKind,
   dx,
   entering = false,
@@ -33,6 +38,14 @@ export default function TaskRow({
 }: TaskRowProps) {
   const leaving = leavingKind !== null;
   const completing = leavingKind === "complete";
+
+  const metaLabel = formatTaskMeta(task, days);
+  const hasPriority = task.priority != null && task.priority !== 4;
+  const repeats = task.repeat && task.repeat !== "none";
+  const reminderCount = task.reminders?.length ?? 0;
+  const hasDeadline = task.deadline != null;
+  const hasSubline =
+    hasPriority || metaLabel || repeats || reminderCount > 0 || hasDeadline;
 
   const animation = leaving
     ? "taskLeave .34s cubic-bezier(.4,0,.2,1) forwards"
@@ -122,7 +135,7 @@ export default function TaskRow({
           >
             {task.title}
           </div>
-          {(task.priority || task.meta) && (
+          {hasSubline && (
             <div
               style={{
                 display: "flex",
@@ -133,12 +146,12 @@ export default function TaskRow({
                 whiteSpace: "nowrap",
               }}
             >
-              {task.priority && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d64545" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              {hasPriority && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PRIORITY_META[task.priority!].color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 22V4h12l-2 4 2 4H4" />
                 </svg>
               )}
-              {task.meta && (
+              {metaLabel && (
                 <span
                   style={{
                     color:
@@ -147,9 +160,55 @@ export default function TaskRow({
                     fontWeight: 600,
                   }}
                 >
-                  {task.meta}
+                  {metaLabel}
                 </span>
               )}
+              {hasDeadline && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    color: "#d64545",
+                    fontWeight: 600,
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l2 2" />
+                    <path d="M9 2h6" />
+                  </svg>
+                  {formatShortDate(task.deadline!.iso)}
+                </span>
+              )}
+              {repeats && (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--color-text) 45%, transparent)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="17 1 21 5 17 9" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+              )}
+              {reminderCount > 0 && (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="color-mix(in srgb, var(--color-text) 45%, transparent)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" />
+                </svg>
+              )}
+            </div>
+          )}
+          {task.notes && (
+            <div
+              style={{
+                fontSize: 13,
+                color: "color-mix(in srgb, var(--color-text) 55%, transparent)",
+                marginTop: 3,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {task.notes}
             </div>
           )}
         </div>

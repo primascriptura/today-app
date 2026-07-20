@@ -3,6 +3,7 @@
 import ComposeSheet from "./ComposeSheet";
 import ConfirmationToast from "./ConfirmationToast";
 import ErrorView from "./ErrorView";
+import FirstTaskCelebration from "./FirstTaskCelebration";
 import ListeningView from "./ListeningView";
 import ProcessingView from "./ProcessingView";
 import TodayView from "./TodayView";
@@ -20,7 +21,7 @@ const ACCENTS = {
 } as const;
 
 export default function Planner() {
-  const { state, actions, days, todayIndex, mic } = usePlanner();
+  const { state, actions, days, today, todayIndex, todayWeekday, mic } = usePlanner();
   const { screen } = state;
 
   const showTasksView = screen === "tasks" || screen === "confirmation";
@@ -62,10 +63,18 @@ export default function Planner() {
         {screen === "tasks" && state.composing && (
           <ComposeSheet
             draft={state.draft}
-            chipDate={state.chipDate}
-            chipPriority={state.chipPriority}
-            sel={state.sel}
+            draftNotes={state.draftNotes}
+            draftDate={state.draftDate}
+            draftTime={state.draftTime}
+            draftRepeat={state.draftRepeat}
+            draftDeadline={state.draftDeadline}
+            draftPriority={state.draftPriority}
+            draftReminders={state.draftReminders}
+            activePicker={state.activePicker}
             days={days}
+            today={today}
+            todayIndex={todayIndex}
+            todayWeekday={todayWeekday}
             actions={actions}
           />
         )}
@@ -85,6 +94,7 @@ export default function Planner() {
           <ListeningView
             paused={state.paused}
             liveTasks={state.tasks.filter((t) => state.liveIds.includes(t.id))}
+            days={days}
             levelRef={mic.levelRef}
             bandsRef={mic.bandsRef}
             actions={actions}
@@ -99,6 +109,8 @@ export default function Planner() {
             task={state.tasks[0] ?? null}
           />
         )}
+
+        {state.celebrate && <FirstTaskCelebration actions={actions} />}
       </main>
     </div>
   );

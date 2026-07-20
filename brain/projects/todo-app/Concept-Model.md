@@ -16,8 +16,10 @@ updated: 2026-07-19
 
 ### Task
 The core thing — one concrete thing the user wants to do.
-- **Attributes:** title, due date (optional), priority (optional), execution
-  notes (optional), state (see below)
+- **Attributes:** title, date (planned day, optional) with optional time
+  (start + duration) and repeat rule; deadline (hard due date, optional,
+  distinct from the planned date); priority (P1–P4, P4 = none); reminders
+  (zero or more, absolute date+time); execution notes (optional); state (see below)
 - **Relationships:** created via at most one Dictation (voice) — or none
   (manual entry); owned by one User
 - **Actions:** Add (voice or manual, same verb either way), Edit, Complete
@@ -90,8 +92,8 @@ stateDiagram-v2
 - Can an Archived Task be reopened, or is archiving final? Not decided.
 - Is there a separate Delete (for a mistakenly-added task), distinct from
   Complete? Not decided.
-- Priority scale — how many levels, what values? Not decided (AI prompt
-  design question, see [[AI-Features]]).
+- Priority scale — DECIDED 2026-07-20: four levels P1–P4 (P4 = none),
+  Todoist-style, coloured flag per level. See [[Decisions#2026-07-20 — Task-creation badges are real pickers; Date chip is the single "when"]].
 - Keep the raw Dictation transcript after parsing? Not decided — flagging
   because "raw speech → parsed task" side-by-side has real value for the
   case-study narrative (see [[Strategy]] desired outcome).
