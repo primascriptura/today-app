@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import Icon from "./Icon";
 import { PRIORITY_META } from "./pickers/ui";
 import { DATE_COLOR } from "@/lib/data";
@@ -27,7 +28,17 @@ interface TaskRowProps {
   onSwipeStart: (e: React.PointerEvent, id: number) => void;
   onSwipeMove: (e: React.PointerEvent) => void;
   onSwipeEnd: () => void;
+  /**
+   * Tap the card body (not a swipe, not the complete circle) to edit it. A
+   * pointer that moves more than a few px is treated as a swipe/scroll and
+   * never fires this.
+   */
+  onTap?: (id: number) => void;
 }
+
+// A pointer that travels further than this between down and up is a swipe or a
+// scroll drag, not a tap — so it must not open the editor.
+const TAP_SLOP = 8;
 
 export default function TaskRow({
   task,
@@ -41,9 +52,13 @@ export default function TaskRow({
   onSwipeStart,
   onSwipeMove,
   onSwipeEnd,
+  onTap,
 }: TaskRowProps) {
   const leaving = leavingKind !== null;
   const completing = leavingKind === "complete";
+
+  // Track the pointer-down origin so pointer-up can tell a tap from a drag.
+  const tapRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   const metaLabel = formatTaskMeta(task, days);
   const hasPriority = task.priority != null && task.priority !== 4;
@@ -95,10 +110,29 @@ export default function TaskRow({
 
       {/* Foreground card. */}
       <div
-        onPointerDown={(e) => onSwipeStart(e, task.id)}
-        onPointerMove={onSwipeMove}
-        onPointerUp={onSwipeEnd}
-        onPointerCancel={onSwipeEnd}
+        onPointerDown={(e) => {
+          tapRef.current = { x: e.clientX, y: e.clientY, moved: false };
+          onSwipeStart(e, task.id);
+        }}
+        onPointerMove={(e) => {
+          const t = tapRef.current;
+          if (t && !t.moved) {
+            if (Math.abs(e.clientX - t.x) > TAP_SLOP || Math.abs(e.clientY - t.y) > TAP_SLOP) {
+              t.moved = true;
+            }
+          }
+          onSwipeMove(e);
+        }}
+        onPointerUp={() => {
+          const t = tapRef.current;
+          tapRef.current = null;
+          if (t && !t.moved && onTap) onTap(task.id);
+          onSwipeEnd();
+        }}
+        onPointerCancel={() => {
+          tapRef.current = null;
+          onSwipeEnd();
+        }}
         style={{
           position: "relative",
           transform: dx ? `translateX(${dx}px)` : undefined,

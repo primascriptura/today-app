@@ -83,3 +83,6 @@ No files-touched / verification / alternatives-rejected essay.
 
 ### 2026-07-20 — First-ever task completion gets a one-time confetti + badge
 **Why:** Reuses the existing lifetime `done` counter's 0→1 transition as the trigger (no new persisted flag); scoped to just this one moment, no streaks/milestones. Full spec: `docs/superpowers/specs/2026-07-20-first-task-celebration-design.md`.
+
+### 2026-07-20 — Fix a misheard task by tapping its card (pause + edit), one editor for create & edit
+**Why:** Live dictation cards were `display-only`, so seeing an AI mistake mid-capture had no fix path — the core annoyance. Now a tap on any card (live or committed) pauses the mic and opens `ComposeSheet` in edit mode, pre-filled; metadata fixes stay touch-only (edit mode suppresses the keyboard autofocus), title fixes tap the field. Reuses the one compose sheet (edit vs create via `editingTaskId`) instead of a separate editor or the breadboard's "Recently Captured" review surface. Closing = saving (a fix flow shouldn't discard). Live-card tap path itself still needs a real-mic test.

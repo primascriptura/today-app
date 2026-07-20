@@ -22,6 +22,13 @@ interface ComposeSheetProps {
   draftPriority: Priority;
   draftReminders: Reminder[];
   activePicker: PickerKind | null;
+  /**
+   * Editing an existing task rather than composing a new one. Suppresses the
+   * keyboard-popping autofocus (so a metadata-only fix stays touch-only),
+   * swaps the footer to a "Done" that saves back, and makes tapping the
+   * backdrop save instead of discard.
+   */
+  editing: boolean;
   days: DayInfo[];
   today: Date;
   todayIndex: number;
@@ -67,6 +74,7 @@ export default function ComposeSheet({
   draftPriority,
   draftReminders,
   activePicker,
+  editing,
   days,
   today,
   todayIndex,
@@ -77,10 +85,13 @@ export default function ComposeSheet({
   const hasDraft = draft.trim().length > 0;
 
   useEffect(() => {
-    // Open the keyboard as soon as the sheet appears.
+    // Compose (new task): open the keyboard immediately. Edit: leave it closed
+    // so a metadata-only fix (wrong day/priority) never has to dismiss the
+    // keyboard first — the chips are reachable at once; tap the title to type.
+    if (editing) return;
     const id = setTimeout(() => inputRef.current?.focus(), 70);
     return () => clearTimeout(id);
-  }, []);
+  }, [editing]);
 
   const dateLabel = draftDate != null ? days[draftDate]?.label ?? "Date" : null;
   const priorityOn = draftPriority !== 4;
@@ -105,7 +116,7 @@ export default function ComposeSheet({
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 6 }}>
       <div
-        onClick={actions.closeCompose}
+        onClick={editing ? actions.saveEdit : actions.closeCompose}
         style={{ position: "absolute", inset: 0, background: "rgba(24,26,48,.32)" }}
       />
       <div
@@ -127,6 +138,20 @@ export default function ComposeSheet({
             boxShadow: "0 -6px 24px rgba(24,26,48,.16)",
           }}
         >
+          {editing && (
+            <div
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                letterSpacing: ".07em",
+                textTransform: "uppercase",
+                color: "color-mix(in srgb, var(--color-text) 45%, transparent)",
+                marginBottom: 10,
+              }}
+            >
+              Edit task
+            </div>
+          )}
           <input
             ref={inputRef}
             value={draft}
@@ -223,7 +248,32 @@ export default function ComposeSheet({
 
           {/* Footer — primary action */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: 18 }}>
-            {hasDraft ? (
+            {editing ? (
+              <button
+                onClick={actions.saveEdit}
+                aria-label="Save changes"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 9,
+                  height: 52,
+                  padding: "0 24px",
+                  border: "none",
+                  borderRadius: 999,
+                  background: "var(--app-accent)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  boxShadow: "0 6px 16px rgba(60,66,110,.34)",
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Done
+              </button>
+            ) : hasDraft ? (
               <button
                 onClick={actions.addTyped}
                 aria-label="Add task"

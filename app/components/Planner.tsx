@@ -60,7 +60,10 @@ export default function Planner() {
           />
         )}
 
-        {screen === "tasks" && state.composing && (
+        {/* Compose sheet: manual add (over the task list) or edit-in-place —
+            including editing a live card mid-dictation (over the Listening
+            view), which is why it also renders on the "listening" screen. */}
+        {state.composing && (screen === "tasks" || screen === "listening") && (
           <ComposeSheet
             draft={state.draft}
             draftNotes={state.draftNotes}
@@ -71,6 +74,7 @@ export default function Planner() {
             draftPriority={state.draftPriority}
             draftReminders={state.draftReminders}
             activePicker={state.activePicker}
+            editing={state.editingTaskId != null}
             days={days}
             today={today}
             todayIndex={todayIndex}

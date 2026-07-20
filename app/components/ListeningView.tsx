@@ -18,8 +18,9 @@ interface ListeningViewProps {
   actions: PlannerActions;
 }
 
-// No-op handlers: cards are display-only while dictating (they become fully
-// swipeable/completable once committed to the task list).
+// No-op handlers: while dictating, a live card can't be swiped away or
+// completed (those belong to the committed task list) — but it CAN be tapped to
+// fix what the AI misheard, which pauses the mic and opens the editor.
 const noop = () => {};
 
 // Voice-capture screen. As phrases are recognized, the "Try saying" prompt
@@ -121,6 +122,7 @@ export default function ListeningView({ paused, liveTasks, days, levelRef, bands
                 onSwipeStart={noop}
                 onSwipeMove={noop}
                 onSwipeEnd={noop}
+                onTap={actions.editTask}
               />
             ))}
           </div>

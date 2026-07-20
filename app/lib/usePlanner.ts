@@ -72,6 +72,12 @@ interface PlannerState {
   draftReminders: Reminder[];
   /** Which attribute picker is open, if any. */
   activePicker: PickerKind | null;
+  /**
+   * Id of the task the compose sheet is currently editing, or null when the
+   * sheet is composing a brand-new task. Drives edit-mode behavior (no
+   * autofocus, "Done" saves back to this task) — one sheet, two modes.
+   */
+  editingTaskId: number | null;
   collapsed: Record<string, boolean>;
   swipe: { id: number; dx: number } | null;
   leaving: { id: number; kind: "complete" | "delete" } | null;
@@ -105,6 +111,7 @@ const initialState: PlannerState = {
   draftPriority: 4,
   draftReminders: [],
   activePicker: null,
+  editingTaskId: null,
   collapsed: {},
   swipe: null,
   leaving: null,
@@ -554,12 +561,82 @@ export function usePlanner() {
       draftPriority: 4,
       draftReminders: [],
       activePicker: null,
+      editingTaskId: null,
     }));
   }, []);
 
   const closeCompose = useCallback(() => {
-    setState((s) => ({ ...s, composing: false, activePicker: null }));
+    setState((s) => ({
+      ...s,
+      composing: false,
+      activePicker: null,
+      editingTaskId: null,
+    }));
   }, []);
+
+  // Open the compose sheet in EDIT mode over an existing task (live-dictation
+  // card or a committed one): load its fields into the draft and pause the mic
+  // so recognition doesn't clobber cards while the user fixes this one. The
+  // same sheet then edits in place instead of creating a new task.
+  const editTask = useCallback((id: number) => {
+    pausedRef.current = true; // keep the async speech loop in sync with paused
+    setState((s) => {
+      const t = s.tasks.find((tk) => tk.id === id);
+      if (!t) return s;
+      return {
+        ...s,
+        paused: true,
+        composing: true,
+        editingTaskId: id,
+        draft: t.title,
+        draftNotes: t.notes ?? "",
+        draftDate: t.day,
+        draftTime: t.time ?? null,
+        draftRepeat: t.repeat ?? "none",
+        draftDeadline: t.deadline ?? null,
+        draftPriority: t.priority ?? 4,
+        draftReminders: t.reminders ?? [],
+        activePicker: null,
+      };
+    });
+  }, []);
+
+  // Commit the edit: write the draft fields back onto the task being edited and
+  // close the sheet. Icon/tint/slot are left as-is (editing doesn't re-run the
+  // parser). Closing this way never discards — a fix flow shouldn't lose edits.
+  const saveEdit = useCallback(() => {
+    setState((s) => {
+      const id = s.editingTaskId;
+      if (id == null) {
+        return { ...s, composing: false, activePicker: null, editingTaskId: null };
+      }
+      const title = s.draft.trim();
+      const day = s.draftDate ?? s.sel;
+      return {
+        ...s,
+        tasks: s.tasks.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                // Empty title keeps the previous one (never blank a task out).
+                title: title || t.title,
+                notes: s.draftNotes.trim() || null,
+                day,
+                when: day === todayIndex ? "today" : "later",
+                time: s.draftTime,
+                repeat: s.draftRepeat,
+                deadline: s.draftDeadline,
+                priority: s.draftPriority,
+                reminders: s.draftReminders,
+              }
+            : t,
+        ),
+        composing: false,
+        activePicker: null,
+        editingTaskId: null,
+      };
+    });
+  }, [todayIndex]);
 
   const setDraft = useCallback((value: string) => {
     setState((s) => ({ ...s, draft: value }));
@@ -747,6 +824,8 @@ export function usePlanner() {
       toggleSlot,
       openCompose,
       closeCompose,
+      editTask,
+      saveEdit,
       setDraft,
       setDraftNotes,
       openPicker,

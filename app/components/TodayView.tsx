@@ -171,6 +171,7 @@ export default function TodayView({
                         onSwipeStart={actions.swStart}
                         onSwipeMove={actions.swMove}
                         onSwipeEnd={actions.swEnd}
+                        onTap={actions.editTask}
                       />
                     ))}
                 </div>
