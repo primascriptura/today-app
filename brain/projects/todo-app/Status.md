@@ -16,6 +16,7 @@ updated: 2026-07-20
 - Voice→AI + voice-reactive waveform live; ⚠️ only real-browser mic test left (dictation + waveform reaction)
 
 ## Recent shipped work
+- 2026-07-20 — Fixed dictation not applying AI: an interim phrase that never fired a final chunk committed raw on today; finish() now parses the dangling interim so day/time/priority apply. Also: live card wraps full text + no corner clip; voice "high priority" → P1. Verified via fake-SR interim-only sim + real /api/parse
 - 2026-07-20 — First-task celebration: confetti + badge on first-ever completion, one-time, no new persisted flag [[Decisions#2026-07-20 — First-ever task completion gets a one-time confetti + badge]]
 - 2026-07-20 — Manual-entry pickers made real: Date (quick opts + calendar + nested Time/Repeat), Deadline, Priority P1–P4, Reminders; removed duplicate day pill (Date chip = sole "when"); voice parse extended (time/repeat/deadline); verified live [[Decisions#2026-07-20 — Task-creation badges are real pickers; Date chip is the single "when"]]
 - 2026-07-19 — Real dates: strip centered on real today (Today/Yesterday/Tomorrow labels + real date, today ring+dot marker); seeds + parser use real todayIndex; verified in prod build [[Decisions#2026-07-19 — Real current date replaces the fixed Jan-2026 demo range]]

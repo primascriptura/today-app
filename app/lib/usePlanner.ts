@@ -43,7 +43,7 @@ export type PickerKind =
 function migrateTask(raw: Task & { priority?: boolean | Priority }): Task {
   const p = raw.priority;
   const priority: Priority =
-    typeof p === "boolean" ? (p ? 2 : 4) : typeof p === "number" ? p : 4;
+    typeof p === "boolean" ? (p ? 1 : 4) : typeof p === "number" ? p : 4;
   return {
     ...raw,
     priority,
@@ -165,6 +165,9 @@ export function usePlanner() {
   // several phrases land inside the same millisecond.
   const seqRef = useRef(0);
   const nextLiveId = useCallback(() => Date.now() + seqRef.current++, []);
+  // Latest interim (not-yet-finalized) text for the open draft card. Lets
+  // finish() enrich a phrase that streamed but never fired a final chunk.
+  const lastInterimRef = useRef("");
 
   // ── Persistence ──────────────────────────────────────────────────────────
   // Load once on mount (client only), so SSR + first render stay deterministic.
@@ -221,7 +224,9 @@ export function usePlanner() {
     reminders: [],
     icon: p.icon,
     tint: ICON_TINTS[p.icon] ?? ICON_TINTS.dot,
-    priority: p.priority ? 2 : 4,
+    // The parser signals urgency as a boolean; "high/urgent" maps to P1 (the
+    // top level), and no urgency to P4 (none).
+    priority: p.priority ? 1 : 4,
     notes: p.notes,
   }), [todayIndex]);
 
@@ -334,6 +339,7 @@ export function usePlanner() {
         if (session !== sessionRef.current || pausedRef.current) return;
         const t = text.trim();
         if (!t) return;
+        lastInterimRef.current = t;
         if (draftIdRef.current == null) {
           const id = nextLiveId();
           draftIdRef.current = id;
@@ -380,6 +386,7 @@ export function usePlanner() {
           }));
         }
         draftIdRef.current = null; // next phrase opens a fresh draft
+        lastInterimRef.current = ""; // this phrase is finalized; nothing dangling
         pendingRef.current.push({ id, text: t });
         void drainQueue(session);
       },
@@ -394,6 +401,7 @@ export function usePlanner() {
     const session = sessionRef.current;
     pendingRef.current = [];
     draftIdRef.current = null;
+    lastInterimRef.current = "";
     drainPromiseRef.current = null;
     pausedRef.current = false;
     liveCountRef.current = 0;
@@ -422,6 +430,7 @@ export function usePlanner() {
     sessionRef.current += 1; // invalidate any in-flight parses
     pendingRef.current = [];
     draftIdRef.current = null;
+    lastInterimRef.current = "";
     drainPromiseRef.current = null;
     liveCountRef.current = 0;
     speech.abort();
@@ -467,6 +476,19 @@ export function usePlanner() {
       stopErr = true;
     }
     mic.stop();
+
+    // A phrase that streamed as interim but never finalized into a chunk is
+    // still a raw, un-parsed draft on screen. Queue it for parsing now so its
+    // date/time/priority get applied — otherwise it commits as raw text on today.
+    const danglingId = draftIdRef.current;
+    const danglingText = lastInterimRef.current.trim();
+    if (danglingId != null && danglingText) {
+      draftIdRef.current = null;
+      lastInterimRef.current = "";
+      pendingRef.current.push({ id: danglingId, text: danglingText });
+      void drainQueue(session);
+    }
+
     await settleQueue(session);
     if (session !== sessionRef.current) return; // canceled while finishing
 
@@ -496,7 +518,7 @@ export function usePlanner() {
     later(() => {
       setState((s) => (s.screen === "confirmation" ? { ...s, screen: "tasks" } : s));
     }, 3000);
-  }, [clearTimers, commitLive, later, mic, parseTranscript, settleQueue, speech, toTask]);
+  }, [clearTimers, commitLive, drainQueue, later, mic, parseTranscript, settleQueue, speech, toTask]);
 
   const dismiss = useCallback(() => {
     clearTimers();

@@ -103,7 +103,9 @@ export default function ListeningView({ paused, liveTasks, days, levelRef, bands
               position: "absolute",
               inset: 0,
               overflowY: "auto",
-              paddingTop: 4,
+              // Breathing room so the cards' resting tilt (rotate -2.5deg)
+              // doesn't push a raised corner past the clip edge (top + sides).
+              padding: "16px 12px 4px",
             }}
           >
             {liveTasks.map((task) => (
@@ -114,6 +116,7 @@ export default function ListeningView({ paused, liveTasks, days, levelRef, bands
                 leavingKind={null}
                 dx={0}
                 entering
+                titleWrap
                 onComplete={noop}
                 onSwipeStart={noop}
                 onSwipeMove={noop}

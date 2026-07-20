@@ -18,6 +18,11 @@ interface TaskRowProps {
   entering?: boolean;
   /** Stagger offset (ms) for the enter animation when several land at once. */
   enterDelayMs?: number;
+  /**
+   * Let the title wrap across lines instead of truncating with an ellipsis.
+   * Used by the live-dictation card so the whole captured phrase stays visible.
+   */
+  titleWrap?: boolean;
   onComplete: (id: number) => void;
   onSwipeStart: (e: React.PointerEvent, id: number) => void;
   onSwipeMove: (e: React.PointerEvent) => void;
@@ -31,6 +36,7 @@ export default function TaskRow({
   dx,
   entering = false,
   enterDelayMs = 0,
+  titleWrap = false,
   onComplete,
   onSwipeStart,
   onSwipeMove,
@@ -128,9 +134,9 @@ export default function TaskRow({
               fontWeight: 600,
               lineHeight: 1.3,
               color: "#201e1d",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              ...(titleWrap
+                ? { whiteSpace: "normal", overflowWrap: "anywhere" }
+                : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }),
             }}
           >
             {task.title}
