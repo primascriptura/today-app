@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import Icon from "./Icon";
-import { PRIORITY_META } from "./pickers/ui";
+import { PriorityBadge } from "./pickers/ui";
 import { DATE_COLOR } from "@/lib/data";
 import { formatShortDate, formatTaskMeta } from "@/lib/dates";
 import type { DayInfo, Task } from "@/lib/types";
@@ -186,11 +186,7 @@ export default function TaskRow({
                 whiteSpace: "nowrap",
               }}
             >
-              {hasPriority && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={PRIORITY_META[task.priority!].color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 22V4h12l-2 4 2 4H4" />
-                </svg>
-              )}
+              {hasPriority && <PriorityBadge priority={task.priority!} />}
               {metaLabel && (
                 <span
                   style={{

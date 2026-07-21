@@ -1,9 +1,11 @@
 "use client";
 
+import BottomNav from "./BottomNav";
 import ComposeSheet from "./ComposeSheet";
 import ConfirmationToast from "./ConfirmationToast";
 import ErrorView from "./ErrorView";
 import FirstTaskCelebration from "./FirstTaskCelebration";
+import InboxView from "./InboxView";
 import ListeningView from "./ListeningView";
 import ProcessingView from "./ProcessingView";
 import TodayView from "./TodayView";
@@ -45,9 +47,8 @@ export default function Planner() {
           ...(ACCENTS.Indigo as React.CSSProperties),
         }}
       >
-        {showTasksView && (
+        {showTasksView && state.view === "today" && (
           <TodayView
-            screen={screen}
             tasks={state.tasks}
             sel={state.sel}
             days={days}
@@ -55,9 +56,25 @@ export default function Planner() {
             collapsed={state.collapsed}
             swipe={state.swipe}
             leaving={state.leaving}
-            composing={state.composing}
             actions={actions}
           />
+        )}
+
+        {showTasksView && state.view === "inbox" && (
+          <InboxView
+            tasks={state.tasks}
+            days={days}
+            collapsed={state.collapsed}
+            swipe={state.swipe}
+            leaving={state.leaving}
+            actions={actions}
+          />
+        )}
+
+        {/* Bottom nav: task destinations + the primary add action. Hidden
+            during the voice/processing/error screens. */}
+        {showTasksView && !state.composing && (
+          <BottomNav view={state.view} onSelect={actions.setView} onAdd={actions.openCompose} />
         )}
 
         {/* Compose sheet: manual add (over the task list) or edit-in-place —

@@ -51,11 +51,14 @@ function migrateTask(raw: Task & { priority?: boolean | Priority }): Task {
     repeat: raw.repeat ?? "none",
     deadline: raw.deadline ?? null,
     reminders: raw.reminders ?? [],
+    completedAt: raw.completedAt ?? null,
   };
 }
 
 interface PlannerState {
   screen: Screen;
+  /** Which task destination the bottom nav is showing. */
+  view: "today" | "inbox";
   tasks: Task[];
   sel: number;
   paused: boolean;
@@ -98,6 +101,7 @@ interface PlannerState {
 // day strip is known (see usePlanner).
 const initialState: PlannerState = {
   screen: "tasks",
+  view: "today",
   tasks: [],
   sel: 0,
   paused: false,
@@ -545,6 +549,19 @@ export function usePlanner() {
     }));
   }, []);
 
+  // Collapse toggle for any keyed group (Inbox priority sections, Done). Shares
+  // the `collapsed` map with the day-view slots via a namespaced key.
+  const toggleGroup = useCallback((key: string) => {
+    setState((s) => ({
+      ...s,
+      collapsed: { ...s.collapsed, [key]: !s.collapsed[key] },
+    }));
+  }, []);
+
+  const setView = useCallback((view: "today" | "inbox") => {
+    setState((s) => ({ ...s, view }));
+  }, []);
+
   // ── Compose (manual entry) ────────────────────────────────────────────────
   // Reset every draft attribute; the Date chip defaults to the day currently
   // shown in the strip so "when" is meaningful the moment the sheet opens.
@@ -736,10 +753,14 @@ export function usePlanner() {
           celebrate: s.done === 0 ? true : s.celebrate,
         };
       });
+      const at = Date.now();
       later(() => {
+        // Completing keeps the task (stamped completedAt) instead of deleting
+        // it: the day view filters completed tasks out — so it still animates
+        // away here — while the Inbox surfaces them in its "Done" section.
         setState((s) => ({
           ...s,
-          tasks: s.tasks.filter((t) => t.id !== id),
+          tasks: s.tasks.map((t) => (t.id === id ? { ...t, completedAt: at } : t)),
           leaving: null,
         }));
       }, 340);
@@ -822,6 +843,8 @@ export function usePlanner() {
       retry,
       selectDay,
       toggleSlot,
+      toggleGroup,
+      setView,
       openCompose,
       closeCompose,
       editTask,

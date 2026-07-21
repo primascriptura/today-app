@@ -1,14 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import DayStrip from "./DayStrip";
 import Icon from "./Icon";
 import TaskRow from "./TaskRow";
 import { SLOTS } from "@/lib/data";
-import type { DayInfo, Screen, Task } from "@/lib/types";
+import type { DayInfo, Task } from "@/lib/types";
 import type { PlannerActions } from "@/lib/usePlanner";
 
 interface TodayViewProps {
-  screen: Screen;
   tasks: Task[];
   sel: number;
   days: DayInfo[];
@@ -16,12 +16,10 @@ interface TodayViewProps {
   collapsed: Record<string, boolean>;
   swipe: { id: number; dx: number } | null;
   leaving: { id: number; kind: "complete" | "delete" } | null;
-  composing: boolean;
   actions: PlannerActions;
 }
 
 export default function TodayView({
-  screen,
   tasks,
   sel,
   days,
@@ -29,15 +27,15 @@ export default function TodayView({
   collapsed,
   swipe,
   leaving,
-  composing,
   actions,
 }: TodayViewProps) {
   const day = days[sel];
-  const dayTasks = tasks.filter((t) => t.day === sel);
-  // Keep the input bar present whenever the task list is on screen — including
-  // the post-voice "confirmation" moment — so it never blinks out after capture.
-  const showComposerBar =
-    (screen === "tasks" || screen === "confirmation") && !composing;
+  // Completed tasks stay in the store (for the Inbox Done section) but are
+  // hidden from the day view — so a checked-off task still animates away here.
+  const dayTasks = tasks.filter((t) => t.day === sel && t.completedAt == null);
+  // The day-switcher circles are hidden by default; tapping the day title
+  // reveals them, tapping again hides them. Resets to collapsed on remount.
+  const [stripOpen, setStripOpen] = useState(false);
 
   return (
     <div style={{ position: "absolute", inset: 0, background: "#f9f4ed" }}>
@@ -50,10 +48,18 @@ export default function TodayView({
           padding: "18px 20px 0",
         }}
       >
-        {/* Header */}
+        {/* Header — tapping the day title toggles the day-switcher circles
+            below. No arrow/chevron glyph on the title itself. */}
         <div style={{ textAlign: "center", marginTop: 14 }}>
-          <div
+          <button
+            onClick={() => setStripOpen((o) => !o)}
+            aria-expanded={stripOpen}
+            aria-label="Toggle day picker"
             style={{
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              padding: 0,
               fontFamily: "var(--font-heading), serif",
               fontSize: 44,
               lineHeight: 1.05,
@@ -61,7 +67,7 @@ export default function TodayView({
             }}
           >
             {day.label}
-          </div>
+          </button>
           <div
             suppressHydrationWarning
             style={{
@@ -74,13 +80,22 @@ export default function TodayView({
           </div>
         </div>
 
-        {/* Day switcher */}
-        <div style={{ marginTop: 18 }}>
+        {/* Day switcher — revealed by the header toggle. */}
+        <div
+          style={{
+            overflow: "hidden",
+            maxHeight: stripOpen ? 96 : 0,
+            opacity: stripOpen ? 1 : 0,
+            marginTop: stripOpen ? 18 : 0,
+            transition:
+              "max-height .28s cubic-bezier(.23,1,.32,1), opacity .2s ease, margin-top .28s cubic-bezier(.23,1,.32,1)",
+          }}
+        >
           <DayStrip sel={sel} days={days} todayIndex={todayIndex} onSelect={actions.selectDay} />
         </div>
 
         {/* Task list */}
-        <div style={{ flex: 1, overflow: "auto", padding: "18px 0 100px" }}>
+        <div style={{ flex: 1, overflow: "auto", padding: "18px 0 116px" }}>
           {dayTasks.length === 0 ? (
             <EmptyDay />
           ) : (
@@ -180,70 +195,6 @@ export default function TodayView({
           )}
         </div>
       </div>
-
-      {/* Composer bar */}
-      {showComposerBar && (
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            padding: "14px 18px 30px",
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-            background:
-              "linear-gradient(to top, #f9f4ed 76%, rgba(249,244,237,0))",
-          }}
-        >
-          <button
-            onClick={actions.openCompose}
-            style={{
-              flex: 1,
-              height: 56,
-              border: "1px solid color-mix(in srgb, var(--color-text) 12%, transparent)",
-              borderRadius: 999,
-              background: "#fff",
-              padding: "0 22px",
-              textAlign: "left",
-              fontSize: 16,
-              color: "color-mix(in srgb, var(--color-text) 48%, transparent)",
-              cursor: "pointer",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            Add a task…
-          </button>
-          <button
-            onClick={actions.tapMic}
-            aria-label="Capture a task by voice"
-            style={{
-              height: 56,
-              border: "none",
-              borderRadius: 999,
-              background: "var(--app-accent)",
-              color: "#fff",
-              padding: "0 24px",
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              fontSize: 16,
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 8px 22px rgba(60,66,110,.34)",
-            }}
-          >
-            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="4" y1="9" x2="4" y2="15" />
-              <line x1="9" y1="5" x2="9" y2="19" />
-              <line x1="14" y1="8" x2="14" y2="16" />
-              <line x1="19" y1="6" x2="19" y2="18" />
-            </svg>
-            Speak
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -282,7 +233,7 @@ function EmptyDay() {
           maxWidth: 230,
         }}
       >
-        A clear day. Type below or tap Speak to add something.
+        A clear day. Tap + to add something.
       </div>
     </div>
   );

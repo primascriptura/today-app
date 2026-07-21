@@ -95,6 +95,12 @@ export interface Task {
   priority?: Priority;
   /** Optional execution detail parsed from a dictation. Stored; not yet rendered. */
   notes?: string | null;
+  /**
+   * Epoch ms when the task was completed, or null/undefined while active.
+   * Completing no longer deletes a task — it stamps this so the task persists
+   * (hidden from the day view, shown in the Inbox "Done" section).
+   */
+  completedAt?: number | null;
 }
 
 /** The top-level screen the app is showing. */

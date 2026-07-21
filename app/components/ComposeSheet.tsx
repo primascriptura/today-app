@@ -246,8 +246,17 @@ export default function ComposeSheet({
             })}
           </div>
 
-          {/* Footer — primary action */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: 18 }}>
+          {/* Footer — primary action. Dictate spans the full sheet width (the
+              only footer state with no other controls competing for space);
+              Done/Add stay right-aligned since chips share the row visually. */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: editing || hasDraft ? "flex-end" : "stretch",
+              marginTop: 18,
+            }}
+          >
             {editing ? (
               <button
                 onClick={actions.saveEdit}
@@ -300,11 +309,12 @@ export default function ComposeSheet({
                 onClick={actions.tapMic}
                 aria-label="Dictate a task"
                 style={{
-                  display: "inline-flex",
+                  display: "flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: 9,
-                  height: 52,
-                  padding: "0 22px",
+                  width: "100%",
+                  height: 56,
                   border: "none",
                   borderRadius: 999,
                   background: "var(--app-accent)",

@@ -3,13 +3,41 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { Priority } from "@/lib/types";
 
-/** Per-level priority presentation (colour + label). P4 = no priority. */
-export const PRIORITY_META: Record<Priority, { color: string; label: string }> = {
-  1: { color: "#d64545", label: "Priority 1" },
-  2: { color: "#e8833a", label: "Priority 2" },
-  3: { color: "#3b6fd6", label: "Priority 3" },
-  4: { color: "color-mix(in srgb, var(--color-text) 42%, transparent)", label: "Priority 4" },
+/**
+ * Per-level priority presentation. `label` is the long name used by the picker;
+ * `short` is the badge word shown on task rows and Inbox group headers (empty
+ * for P4 = no priority, which renders no badge).
+ */
+export const PRIORITY_META: Record<Priority, { color: string; label: string; short: string }> = {
+  1: { color: "#d64545", label: "Priority 1", short: "HIGH" },
+  2: { color: "#e8833a", label: "Priority 2", short: "MEDIUM" },
+  3: { color: "#3b6fd6", label: "Priority 3", short: "LOW" },
+  4: { color: "color-mix(in srgb, var(--color-text) 42%, transparent)", label: "Priority 4", short: "" },
 };
+
+/** Small colored priority badge (HIGH/MEDIUM/LOW). Renders nothing for P4. */
+export function PriorityBadge({ priority }: { priority: Priority }) {
+  const meta = PRIORITY_META[priority];
+  if (!meta.short) return null;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        height: 18,
+        padding: "0 7px",
+        borderRadius: 999,
+        fontSize: 10.5,
+        fontWeight: 800,
+        letterSpacing: ".05em",
+        color: meta.color,
+        background: `color-mix(in srgb, ${meta.color} 14%, transparent)`,
+      }}
+    >
+      {meta.short}
+    </span>
+  );
+}
 
 /** A Todoist-style flag glyph, tinted per priority. */
 export function Flag({ color, size = 18 }: { color: string; size?: number }) {
