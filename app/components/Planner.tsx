@@ -23,7 +23,7 @@ const ACCENTS = {
 } as const;
 
 export default function Planner() {
-  const { state, actions, days, today, todayIndex, todayWeekday, mic } = usePlanner();
+  const { state, hydrated, actions, days, today, todayIndex, todayWeekday, mic } = usePlanner();
   const { screen } = state;
 
   const showTasksView = screen === "tasks" || screen === "confirmation";
@@ -47,7 +47,12 @@ export default function Planner() {
           ...(ACCENTS.Indigo as React.CSSProperties),
         }}
       >
-        {showTasksView && state.view === "today" && (
+        {/* Gate on `hydrated`: state.tasks starts as the in-memory seed and
+            gets swapped for real localStorage data in an effect that fires
+            after the first paint. Rendering before that swap would flash the
+            seed (e.g. today's tasks looking fresh) right before it's replaced
+            by the real, possibly-already-completed data. */}
+        {showTasksView && state.view === "today" && hydrated && (
           <TodayView
             tasks={state.tasks}
             sel={state.sel}
@@ -60,7 +65,7 @@ export default function Planner() {
           />
         )}
 
-        {showTasksView && state.view === "inbox" && (
+        {showTasksView && state.view === "inbox" && hydrated && (
           <InboxView
             tasks={state.tasks}
             days={days}
