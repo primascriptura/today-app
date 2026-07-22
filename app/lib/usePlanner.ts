@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ICON_TINTS, makeSeedTasks } from "./data";
 import { buildStrip } from "./dates";
+import { parse as parseText, type Segment } from "./nlp";
 import type { ParseResponse, ParsedTask } from "./parse";
 import type {
   Deadline,
@@ -64,6 +65,10 @@ interface PlannerState {
   paused: boolean;
   composing: boolean;
   draft: string;
+  /** Title with inline date/time/priority tokens stripped — what gets saved. */
+  draftClean: string;
+  /** Runs of the draft for the highlight mirror (matched tokens tagged). */
+  draftSegments: Segment[];
   /** Optional free-text execution detail, typed alongside the title. */
   draftNotes: string;
   /** Draft task attributes, set via the compose-sheet pickers. */
@@ -73,6 +78,18 @@ interface PlannerState {
   draftDeadline: Deadline | null;
   draftPriority: Priority; // 4 = none
   draftReminders: Reminder[];
+  /**
+   * Provenance for inline parsing: true when the value was set by typing a
+   * token (so deleting the token reverts it), false when set manually via a
+   * picker (typing never clears it). The *Default fields hold the value to
+   * revert to when an auto-set token is removed.
+   */
+  draftDateFromNlp: boolean;
+  draftTimeFromNlp: boolean;
+  draftPriorityFromNlp: boolean;
+  draftDateDefault: number | null;
+  draftTimeDefault: TaskTime | null;
+  draftPriorityDefault: Priority;
   /** Which attribute picker is open, if any. */
   activePicker: PickerKind | null;
   /**
@@ -107,6 +124,8 @@ const initialState: PlannerState = {
   paused: false,
   composing: false,
   draft: "",
+  draftClean: "",
+  draftSegments: [],
   draftNotes: "",
   draftDate: null,
   draftTime: null,
@@ -114,6 +133,12 @@ const initialState: PlannerState = {
   draftDeadline: null,
   draftPriority: 4,
   draftReminders: [],
+  draftDateFromNlp: false,
+  draftTimeFromNlp: false,
+  draftPriorityFromNlp: false,
+  draftDateDefault: null,
+  draftTimeDefault: null,
+  draftPriorityDefault: 4,
   activePicker: null,
   editingTaskId: null,
   collapsed: {},
@@ -570,6 +595,8 @@ export function usePlanner() {
       ...s,
       composing: true,
       draft: "",
+      draftClean: "",
+      draftSegments: [],
       draftNotes: "",
       draftDate: s.sel,
       draftTime: null,
@@ -577,6 +604,12 @@ export function usePlanner() {
       draftDeadline: null,
       draftPriority: 4,
       draftReminders: [],
+      draftDateFromNlp: false,
+      draftTimeFromNlp: false,
+      draftPriorityFromNlp: false,
+      draftDateDefault: s.sel,
+      draftTimeDefault: null,
+      draftPriorityDefault: 4,
       activePicker: null,
       editingTaskId: null,
     }));
@@ -606,6 +639,10 @@ export function usePlanner() {
         composing: true,
         editingTaskId: id,
         draft: t.title,
+        // The stored title is already clean; keep it verbatim (don't re-strip a
+        // coincidental token). Segments still highlight if they retype.
+        draftClean: t.title,
+        draftSegments: parseText(t.title, days, todayIndex).segments,
         draftNotes: t.notes ?? "",
         draftDate: t.day,
         draftTime: t.time ?? null,
@@ -613,10 +650,16 @@ export function usePlanner() {
         draftDeadline: t.deadline ?? null,
         draftPriority: t.priority ?? 4,
         draftReminders: t.reminders ?? [],
+        draftDateFromNlp: false,
+        draftTimeFromNlp: false,
+        draftPriorityFromNlp: false,
+        draftDateDefault: t.day,
+        draftTimeDefault: t.time ?? null,
+        draftPriorityDefault: t.priority ?? 4,
         activePicker: null,
       };
     });
-  }, []);
+  }, [days, todayIndex]);
 
   // Commit the edit: write the draft fields back onto the task being edited and
   // close the sheet. Icon/tint/slot are left as-is (editing doesn't re-run the
@@ -627,7 +670,7 @@ export function usePlanner() {
       if (id == null) {
         return { ...s, composing: false, activePicker: null, editingTaskId: null };
       }
-      const title = s.draft.trim();
+      const title = s.draftClean.trim();
       const day = s.draftDate ?? s.sel;
       return {
         ...s,
@@ -655,9 +698,47 @@ export function usePlanner() {
     });
   }, [todayIndex]);
 
-  const setDraft = useCallback((value: string) => {
-    setState((s) => ({ ...s, draft: value }));
-  }, []);
+  // Typing runs the local NL parser: recognised tokens light up (segments),
+  // populate the matching chips, and get stripped from the saved title
+  // (draftClean). Parsing only *sets* a chip; a value the user set by hand via a
+  // picker is never cleared by typing, and an auto-set value reverts to its
+  // pre-typing default once its token is deleted.
+  const setDraft = useCallback(
+    (value: string) => {
+      const r = parseText(value, days, todayIndex);
+      setState((s) => {
+        const next: PlannerState = {
+          ...s,
+          draft: value,
+          draftClean: r.cleanTitle,
+          draftSegments: r.segments,
+        };
+        if (r.date != null) {
+          next.draftDate = r.date;
+          next.draftDateFromNlp = true;
+        } else if (s.draftDateFromNlp) {
+          next.draftDate = s.draftDateDefault;
+          next.draftDateFromNlp = false;
+        }
+        if (r.time != null) {
+          next.draftTime = r.time;
+          next.draftTimeFromNlp = true;
+        } else if (s.draftTimeFromNlp) {
+          next.draftTime = s.draftTimeDefault;
+          next.draftTimeFromNlp = false;
+        }
+        if (r.priority != null) {
+          next.draftPriority = r.priority;
+          next.draftPriorityFromNlp = true;
+        } else if (s.draftPriorityFromNlp) {
+          next.draftPriority = s.draftPriorityDefault;
+          next.draftPriorityFromNlp = false;
+        }
+        return next;
+      });
+    },
+    [days, todayIndex],
+  );
 
   const setDraftNotes = useCallback((value: string) => {
     setState((s) => ({ ...s, draftNotes: value }));
@@ -671,12 +752,14 @@ export function usePlanner() {
     setState((s) => ({ ...s, activePicker: null }));
   }, []);
 
+  // Manual picker edits win over parsing: clear the from-NLP flag and move the
+  // revert-default to the chosen value, so later typing/deletion won't undo it.
   const setDraftDate = useCallback((day: number | null) => {
-    setState((s) => ({ ...s, draftDate: day }));
+    setState((s) => ({ ...s, draftDate: day, draftDateFromNlp: false, draftDateDefault: day }));
   }, []);
 
   const setDraftTime = useCallback((time: TaskTime | null) => {
-    setState((s) => ({ ...s, draftTime: time }));
+    setState((s) => ({ ...s, draftTime: time, draftTimeFromNlp: false, draftTimeDefault: time }));
   }, []);
 
   const setDraftRepeat = useCallback((repeat: RepeatRule) => {
@@ -688,7 +771,12 @@ export function usePlanner() {
   }, []);
 
   const setDraftPriority = useCallback((priority: Priority) => {
-    setState((s) => ({ ...s, draftPriority: priority }));
+    setState((s) => ({
+      ...s,
+      draftPriority: priority,
+      draftPriorityFromNlp: false,
+      draftPriorityDefault: priority,
+    }));
   }, []);
 
   const setDraftReminders = useCallback((reminders: Reminder[]) => {
@@ -697,7 +785,9 @@ export function usePlanner() {
 
   const addTyped = useCallback(() => {
     setState((s) => {
-      const title = s.draft.trim();
+      // Save the token-stripped title; guard against a title that was *only*
+      // tokens (e.g. "tomorrow") by falling back to the raw text.
+      const title = s.draftClean.trim() || s.draft.trim();
       if (!title) return s;
       const day = s.draftDate ?? s.sel;
       const task: Task = {
@@ -722,6 +812,8 @@ export function usePlanner() {
         tasks: [task, ...s.tasks],
         composing: false,
         draft: "",
+        draftClean: "",
+        draftSegments: [],
         draftNotes: "",
         draftDate: null,
         draftTime: null,
@@ -729,6 +821,12 @@ export function usePlanner() {
         draftDeadline: null,
         draftPriority: 4,
         draftReminders: [],
+        draftDateFromNlp: false,
+        draftTimeFromNlp: false,
+        draftPriorityFromNlp: false,
+        draftDateDefault: null,
+        draftTimeDefault: null,
+        draftPriorityDefault: 4,
         activePicker: null,
       };
     });

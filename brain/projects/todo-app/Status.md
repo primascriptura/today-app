@@ -16,6 +16,7 @@ updated: 2026-07-20
 - Voice→AI + voice-reactive waveform live; ⚠️ only real-browser mic test left (dictation + waveform reaction)
 
 ## Recent shipped work
+- 2026-07-22 — Inline NL parsing in typed compose (date/time/priority, UK+EN): tokens highlight in brand colour, auto-fill chips, strip from title on save; provenance keeps manual chips safe. Browser-verified + 15 unit tests (`node --test`) [[Decisions#2026-07-22 — Inline natural-language parsing when typing a task (Todoist-style)]]
 - 2026-07-20 — Tap any card → pause mic + edit in place (one ComposeSheet, create/edit via editingTaskId); prod-build verified in browser, live-card mic tap still untested [[Decisions#2026-07-20 — Fix a misheard task by tapping its card (pause + edit), one editor for create & edit]]
 - 2026-07-20 — Fixed dictation not applying AI: an interim phrase that never fired a final chunk committed raw on today; finish() now parses the dangling interim so day/time/priority apply. Also: live card wraps full text + no corner clip; voice "high priority" → P1. Verified via fake-SR interim-only sim + real /api/parse
 - 2026-07-20 — First-task celebration: confetti + badge on first-ever completion, one-time, no new persisted flag [[Decisions#2026-07-20 — First-ever task completion gets a one-time confetti + badge]]

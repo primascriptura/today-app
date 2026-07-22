@@ -50,8 +50,9 @@ a {
   color: var(--app-accent-strong);
 }
 
-/* Hide the horizontal day-strip scrollbar */
-.dayStrip::-webkit-scrollbar {
+/* Hide horizontal scrollbars on the day strip + compose-sheet chip row */
+.dayStrip::-webkit-scrollbar,
+.chipRow::-webkit-scrollbar {
   display: none;
 }
 

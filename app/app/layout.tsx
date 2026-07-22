@@ -38,7 +38,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${heading.variable} ${body.variable}`}>
+    // suppressHydrationWarning: browser extensions (e.g. LanguageTool's
+    // data-lt-installed) inject attributes onto <html> before React
+    // hydrates, which is a harmless false-positive mismatch — this only
+    // silences that one element's own attributes, not real mismatches below.
+    <html lang="en" className={`${heading.variable} ${body.variable}`} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

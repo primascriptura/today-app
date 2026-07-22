@@ -83,6 +83,7 @@ export default function Planner() {
         {state.composing && (screen === "tasks" || screen === "listening") && (
           <ComposeSheet
             draft={state.draft}
+            draftSegments={state.draftSegments}
             draftNotes={state.draftNotes}
             draftDate={state.draftDate}
             draftTime={state.draftTime}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import HighlightedInput from "./HighlightedInput";
 import DateSheet from "./pickers/DateSheet";
 import DeadlineSheet from "./pickers/DeadlineSheet";
 import PrioritySheet from "./pickers/PrioritySheet";
@@ -9,11 +10,14 @@ import RepeatSheet from "./pickers/RepeatSheet";
 import TimeSheet from "./pickers/TimeSheet";
 import { Flag, PRIORITY_META } from "./pickers/ui";
 import { formatShortDate } from "@/lib/dates";
+import type { Segment } from "@/lib/nlp";
 import type { DayInfo, Deadline, Priority, RepeatRule, Reminder, TaskTime } from "@/lib/types";
 import type { PickerKind, PlannerActions } from "@/lib/usePlanner";
 
 interface ComposeSheetProps {
   draft: string;
+  /** Highlight runs for the title (matched date/time/priority tokens tagged). */
+  draftSegments: Segment[];
   draftNotes: string;
   draftDate: number | null;
   draftTime: TaskTime | null;
@@ -66,6 +70,7 @@ const chipOff: CSSProperties = {
 
 export default function ComposeSheet({
   draft,
+  draftSegments,
   draftNotes,
   draftDate,
   draftTime,
@@ -152,22 +157,15 @@ export default function ComposeSheet({
               Edit task
             </div>
           )}
-          <input
-            ref={inputRef}
+          <HighlightedInput
+            inputRef={inputRef}
             value={draft}
-            onChange={(e) => actions.setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                actions.addTyped();
-              }
-            }}
-            placeholder="e.g., Clean out fridge Saturday evening"
-            style={{
+            segments={draftSegments}
+            onChange={actions.setDraft}
+            onEnter={editing ? actions.saveEdit : actions.addTyped}
+            placeholder="e.g., Clean out fridge tomorrow 6pm"
+            textStyle={{
               width: "100%",
-              border: "none",
-              outline: "none",
-              background: "transparent",
               fontSize: 20,
               fontWeight: 600,
               color: "#201e1d",
@@ -198,7 +196,10 @@ export default function ComposeSheet({
           />
 
           {/* Attribute chips — each opens a real picker */}
-          <div style={{ display: "flex", gap: 9, overflowX: "auto", paddingBottom: 2 }}>
+          <div
+            className="chipRow"
+            style={{ display: "flex", gap: 9, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}
+          >
             {chip({
               kind: "date",
               active: draftDate != null,
@@ -246,14 +247,13 @@ export default function ComposeSheet({
             })}
           </div>
 
-          {/* Footer — primary action. Dictate spans the full sheet width (the
-              only footer state with no other controls competing for space);
-              Done/Add stay right-aligned since chips share the row visually. */}
+          {/* Footer — primary action, always full width. Done stays a compact
+              right-aligned confirm (edit mode implies a focused, small fix). */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: editing || hasDraft ? "flex-end" : "stretch",
+              justifyContent: editing ? "flex-end" : "stretch",
               marginTop: 18,
             }}
           >
@@ -287,22 +287,27 @@ export default function ComposeSheet({
                 onClick={actions.addTyped}
                 aria-label="Add task"
                 style={{
-                  width: 56,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 9,
+                  width: "100%",
                   height: 56,
                   border: "none",
                   borderRadius: 999,
                   background: "var(--app-accent)",
                   color: "#fff",
                   cursor: "pointer",
-                  display: "grid",
-                  placeItems: "center",
+                  fontSize: 16,
+                  fontWeight: 700,
                   boxShadow: "0 6px 16px rgba(60,66,110,.34)",
                 }}
               >
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="19" x2="12" y2="5" />
                   <polyline points="5 12 12 5 19 12" />
                 </svg>
+                Add task
               </button>
             ) : (
               <button

@@ -48,36 +48,48 @@ export default function TodayView({
           padding: "18px 20px 0",
         }}
       >
-        {/* Header — tapping the day title toggles the day-switcher circles
-            below. No arrow/chevron glyph on the title itself. */}
-        <div style={{ textAlign: "center", marginTop: 14 }}>
-          <button
-            onClick={() => setStripOpen((o) => !o)}
-            aria-expanded={stripOpen}
-            aria-label="Toggle day picker"
-            style={{
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              padding: 0,
-              fontFamily: "var(--font-heading), serif",
-              fontSize: 44,
-              lineHeight: 1.05,
-              color: "#201e1d",
-            }}
-          >
-            {day.label}
-          </button>
-          <div
-            suppressHydrationWarning
-            style={{
-              fontSize: 16,
-              color: "color-mix(in srgb, var(--color-text) 52%, transparent)",
-              marginTop: 4,
-            }}
-          >
-            {day.dateLabel}
+        {/* Header — day arrows step ±1 (selectDay clamps at the strip edges);
+            tapping the title toggles the day-switcher circles below. */}
+        <div style={{ display: "flex", alignItems: "center", marginTop: 14 }}>
+          <DayArrow
+            direction="prev"
+            disabled={sel <= 0}
+            onClick={() => actions.selectDay(sel - 1)}
+          />
+          <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
+            <button
+              onClick={() => setStripOpen((o) => !o)}
+              aria-expanded={stripOpen}
+              aria-label="Toggle day picker"
+              style={{
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                padding: 0,
+                fontFamily: "var(--font-heading), serif",
+                fontSize: 44,
+                lineHeight: 1.05,
+                color: "#201e1d",
+              }}
+            >
+              {day.label}
+            </button>
+            <div
+              suppressHydrationWarning
+              style={{
+                fontSize: 16,
+                color: "color-mix(in srgb, var(--color-text) 52%, transparent)",
+                marginTop: 4,
+              }}
+            >
+              {day.dateLabel}
+            </div>
           </div>
+          <DayArrow
+            direction="next"
+            disabled={sel >= days.length - 1}
+            onClick={() => actions.selectDay(sel + 1)}
+          />
         </div>
 
         {/* Day switcher — revealed by the header toggle. */}
@@ -196,6 +208,41 @@ export default function TodayView({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Chevron button that steps the day header ±1 day (selectDay clamps at the strip edges). */
+function DayArrow({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: "prev" | "next";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={direction === "prev" ? "Previous day" : "Next day"}
+      style={{
+        flex: "none",
+        width: 40,
+        height: 40,
+        border: "none",
+        background: "transparent",
+        cursor: disabled ? "default" : "pointer",
+        display: "grid",
+        placeItems: "center",
+        color: "color-mix(in srgb, var(--color-text) 38%, transparent)",
+        opacity: disabled ? 0.35 : 1,
+      }}
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        {direction === "prev" ? <polyline points="15 18 9 12 15 6" /> : <polyline points="9 6 15 12 9 18" />}
+      </svg>
+    </button>
   );
 }
 
